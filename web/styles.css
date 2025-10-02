@@ -1,309 +1,123 @@
-        :root {
-            --bg: #0b1020;
-            --panel: #111632;
-            --panel2: #0f1430;
-            --text: #e9eefb;
-            --muted: #a8b2d1;
-            --accent: #6aa2ff;
-            --accent2: #7aefc6;
-        }
+:root{
+  --bg:#0b1020; --panel:#121a35; --panel2:#0f1430;
+  --text:#e9eefb; --muted:#a8b2d1; --accent:#6aa2ff; --accent2:#7aefc6;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:ui-sans-serif,system-ui,Arial
+}
 
-        * {
-            box-sizing: border-box
-        }
+/* Header */
+header{
+  position:sticky; top:0; z-index:10;
+  background:linear-gradient(180deg,#0d1431,#0b1020 80%);
+  border-bottom:1px solid #1a2146;
+}
+.wrap{max-width:1100px; margin:0 auto; padding:16px}
+.bar{display:flex; gap:12px; align-items:center}
+h1{margin:0; font-size:20px; font-weight:900; letter-spacing:.4px}
 
-        body {
-            margin: 0;
-            background: var(--bg);
-            color: var(--text);
-            font-family: ui-sans-serif, system-ui, Arial;
-        }
+input[type=text], select, button{
+  padding:12px 14px; border-radius:12px; border:1px solid #223255;
+}
+input[type=text], select{
+  background:var(--panel2); color:var(--text); outline:none
+}
+button{
+  border:0; background:var(--accent); color:#06112b; font-weight:800; cursor:pointer
+}
+button#addToBinderBtn{background:var(--accent2); color:#06112b}
 
-        header {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            background: linear-gradient(180deg, #0d1431, #0b1020 80%);
-            border-bottom: 1px solid #1a2146;
-        }
+/* Main */
+main.wrap{display:grid; grid-template-columns:1fr; gap:18px}
+.tabs{display:flex; gap:10px}
+.tab{
+  padding:10px 12px; border-radius:10px; cursor:pointer;
+  background:#121a35; border:1px solid #1a2146;
+}
+.tab.active{background:#18204a; color:#fff; border-color:#28306a}
+.panel{
+  background:#121a35; border:1px solid #1a2146; border-radius:16px;
+  padding:16px; box-shadow:0 24px 60px rgba(0,0,0,.25);
+}
 
-        .wrap {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 16px;
-        }
+/* Liste (Inbox) */
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px}
+.card{background:#121a35; border:1px solid #1a2146; border-radius:14px; padding:12px}
+.row{display:flex; gap:12px; align-items:center}
+.title{font-weight:900; font-size:15px}
+.muted{color:var(--muted); font-size:12px}
+.price{font-weight:900; margin-top:6px; color:var(--accent2)}
+.counts{color:var(--muted); font-size:13px}
+a.link{color:#8ab4ff; text-decoration:none}
 
-        .bar {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
+/* Liste küçük görsel — Sadece grid içine özelle */
+.grid img.thumb{
+  width:80px; height:112px; object-fit:cover;
+  border-radius:6px; background:#0a0f27; flex:0 0 auto;
+}
 
-        h1 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 900;
-            letter-spacing: .4px
-        }
+/* Binder 3x3 – responsive, oran sabit */
+.flip-wrap{display:flex; justify-content:center; align-items:flex-start}
+#binderPanel .grid9{
+  --maxw:980px;
+  width:min(100%,var(--maxw));
+  margin-inline:auto; padding-inline:clamp(8px,2vw,16px);
+  display:grid; grid-template-columns:repeat(3,1fr); gap:12px; min-height:560px;
+}
+#binderPanel .slot{
+  background:#0f1736; border:1px dashed #2a3568; border-radius:12px; padding:10px;
+  display:block;
+}
 
-        input[type=text] {
-            flex: 1;
-            padding: 12px 14px;
-            border-radius: 12px;
-            border: 1px solid #223255;
-            background: var(--panel2);
-            color: var(--text);
-            outline: none
-        }
+/* Kart oranını sabitleyen çerçeve */
+.imgwrap{
+  position:relative; width:100%;
+  /* Pokemon kartı ~63x88mm → 63/88 ≈ 0.716 → % ile sabitleme */
+  padding-top:140%;
+  overflow:hidden; border-radius:10px; background:#0a0f27;
+}
+/* Binder içindeki img (kart) */
+.imgwrap img.card{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; image-rendering:auto; display:block;
+}
 
-        button {
-            padding: 12px 14px;
-            border: 0;
-            border-radius: 12px;
-            background: var(--accent);
-            color: #06112b;
-            font-weight: 800;
-            cursor: pointer
-        }
+.meta{margin-top:8px; font-size:12px}
+.meta-line{white-space:nowrap; text-overflow:ellipsis; overflow:hidden}
 
-        main.wrap {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 18px;
-        }
+.badge-lowres{
+  position:absolute; right:6px; top:6px; font-size:10px;
+  background:#ffb703; color:#111; padding:2px 6px; border-radius:12px;
+}
 
-        .tabs {
-            display: flex;
-            gap: 10px;
-        }
+/* Boş, skeleton, toast */
+.empty{text-align:center; color:var(--muted); padding:28px}
+.skeleton{
+  background:linear-gradient(90deg,#1a2146,#222a58,#1a2146);
+  background-size:200% 100%; animation:s 1.6s linear infinite;
+  height:120px; border-radius:12px
+}
+@keyframes s{0%{background-position:0 0}100%{background-position:200% 0}}
+.toast{
+  position:fixed; right:16px; bottom:16px; background:#1a2146; color:#e9eefb;
+  padding:10px 14px; border-radius:12px; border:1px solid #28306a; box-shadow:0 10px 30px rgba(0,0,0,.4);
+  display:none
+}
 
-        .tab {
-            padding: 10px 12px;
-            border-radius: 10px;
-            background: #121a35;
-            cursor: pointer;
-            border: 1px solid #1a2146;
-        }
+/* Loading mask */
+#loading{
+  position:fixed; inset:0; background:rgba(3,7,18,.55);
+  display:none; align-items:center; justify-content:center; z-index:9999;
+}
+#loading .spinner{
+  width:28px; height:28px; border-radius:50%;
+  border:3px solid #1f2b56; border-top-color:#fff; animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-        .tab.active {
-            background: #18204a;
-            color: #fff;
-            border-color: #28306a
-        }
-
-        .panel {
-            background: #121a35;
-            border: 1px solid #1a2146;
-            border-radius: 16px;
-            padding: 16px;
-            box-shadow: 0 24px 60px rgba(0, 0, 0, .25);
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-            gap: 12px;
-        }
-
-        .card {
-            background: #121a35;
-            border: 1px solid #1a2146;
-            border-radius: 14px;
-            padding: 12px;
-        }
-
-        .row {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        img.thumb {
-            width: 140px;
-            height: auto;
-            border-radius: 12px;
-            background: #0e152b;
-        }
-
-        .title {
-            font-weight: 900;
-            font-size: 15px;
-        }
-
-        .muted {
-            color: var(--muted);
-            font-size: 12px;
-        }
-
-        .price {
-            font-weight: 900;
-            margin-top: 6px;
-            color: var(--accent2)
-        }
-
-        /* Var olan .flip-wrap zaten center, ama kapsayıcıyı da sabitleyelim */
-        .flip-wrap {
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-        }
-
-        /* Sabit 920px yerine responsive genişlik */
-        #binderPanel .grid9 {
-            --maxw: 980px;
-            width: min(100%, var(--maxw));
-            margin-inline: auto;
-            /* ortala */
-            padding-inline: clamp(8px, 2vw, 16px);
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            min-height: 560px;
-        }
-
-        #binderPanel .slot {
-            display: grid;
-            grid-template-columns: 120px 1fr;
-            gap: 10px;
-            align-items: start;
-            background: #0f1736;
-            border: 1px dashed #2a3568;
-            border-radius: 12px;
-            padding: 10px;
-        }
-
-        #binderPanel img.card {
-            width: 120px;
-            height: auto;
-            object-fit: contain;
-        }
-
-        #binderPanel .slot .title,
-        #binderPanel .slot .muted {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-
-        #binderPanel .slot .meta-line {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-
-        /* Görseli sabitle – taşma yok */
-        #binderPanel img.card {
-            width: 140px;
-            /* 120px düşük gibi gelirse 140 yapalım */
-            height: auto;
-            border-radius: 8px;
-            background: #0e152b;
-            flex: 0 0 auto;
-        }
-
-        #binderPanel .slot .imgwrap {
-            width: 120px;
-            aspect-ratio: 63 / 88;
-            /* Pokemon kart oranı ~ 63x88 mm */
-            background: #0e152b;
-            border-radius: 8px;
-            overflow: hidden;
-            flex: 0 0 auto;
-        }
-
-        #binderPanel .slot .imgwrap img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            /* dikdörtgen-kare farkı sorun değil */
-            display: block;
-        }
-
-        #binderPanel .slot .meta {
-            min-width: 0;
-            flex: 1;
-        }
-
-        #binderPanel .slot .meta .title,
-        #binderPanel .slot .meta .line {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* Küçük ekranlarda 2 sütun */
-        @media (max-width: 900px) {
-            #binderPanel .grid9 {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            #binderPanel img.card {
-                width: 120px;
-            }
-        }
-
-        /* Çok küçük ekran: 1 sütun */
-        @media (max-width: 560px) {
-            #binderPanel .grid9 {
-                grid-template-columns: 1fr;
-            }
-
-            #binderPanel img.card {
-                width: 110px;
-            }
-        }
-
-        /* gerekiyorsa 0 yap */
-        .page {
-            height: 100%;
-        }
-
-
-        .empty {
-            text-align: center;
-            color: var(--muted);
-            padding: 28px;
-        }
-
-        .skeleton {
-            background: linear-gradient(90deg, #1a2146, #222a58, #1a2146);
-            background-size: 200% 100%;
-            animation: s 1.6s linear infinite;
-            height: 120px;
-            border-radius: 12px
-        }
-
-        @keyframes s {
-            0% {
-                background-position: 0 0
-            }
-
-            100% {
-                background-position: 200% 0
-            }
-        }
-
-        .counts {
-            color: var(--muted);
-            font-size: 13px;
-        }
-
-        a.link {
-            color: #8ab4ff;
-            text-decoration: none
-        }
-
-        .toast {
-            position: fixed;
-            right: 16px;
-            bottom: 16px;
-            background: #1a2146;
-            color: #e9eefb;
-            padding: 10px 14px;
-            border-radius: 12px;
-            border: 1px solid #28306a;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, .4);
-            display: none
-        }
+/* Responsive kırılımlar */
+@media (max-width:900px){ #binderPanel .grid9{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:560px){ #binderPanel .grid9{grid-template-columns:1fr} }
