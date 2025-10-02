@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="tr">
+
+<head>
+    <link rel="icon" href="data:,">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Pokémon TCG Binder</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <header>
+        <div class="wrap">
+            <div class="bar">
+                <h1>Pokémon TCG Binder</h1>
+                <!-- h1 ve inputların arasına: -->
+                <select id="profileSel"
+                    style="padding:10px;border-radius:10px;background:#0f1430;color:#e9eefb;border:1px solid #223255">
+                    <option value="default">default</option>
+                </select>
+                <select id="binderSel"
+                    style="padding:10px;border-radius:10px;background:#0f1430;color:#e9eefb;border:1px solid #223255">
+                    <option value="main">Ana Binder</option>
+                </select>
+                <button id="createProfileBtn" style="background:#7aefc6;color:#06112b">Profil +</button>
+                <input id="urlInput" type="text" placeholder="PriceCharting offers (collection) linkini yapıştır">
+                <input id="cookieInput" type="text" placeholder="(opsiyonel) pricecharting.com cookie">
+                <button id="importBtn">Güncelle</button>
+            </div>
+
+        </div>
+    </header>
+
+    <main class="wrap">
+        <div class="tabs">
+            <div class="tab active" data-tab="grid">Liste</div>
+            <div class="tab" data-tab="binder">Binder</div>
+        </div>
+
+        <section id="gridPanel" class="panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+                <div class="counts"><span id="countTxt">0</span> kart</div>
+                <div class="counts"><a class="link" href="#" id="openPc" target="_blank" rel="noreferrer">Kaynak
+                        linki</a></div>
+            </div>
+            <div id="grid" class="grid">
+                <!-- skeleton -->
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+            </div>
+            <!-- gridPanel içinde üst bilgi satırının altına: -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0">
+                <label style="color:#a8b2d1">
+                    <input type="checkbox" id="selectAll"> Tümünü seç
+                </label>
+                <div>
+                    <button id="addToBinderBtn">Seçileni Binder’a Ekle</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="binderPanel" class="panel" style="display:none">
+            <div class="flip-wrap">
+                <div style="width:920px;">
+                    <div id="binderGrid" class="grid9"></div>
+                    <div id="binderNav">
+                        <button id="prevBtn">◀︎ Önceki</button>
+                        <span id="pageInfo" style="color:#a8b2d1"></span>
+                        <button id="nextBtn">Sonraki ▶︎</button>
+                    </div>
+                </div>
+            </div>
+            <div id="binderEmpty" class="empty" style="display:none">
+                Henüz kart yok. Üstteki kutuya PriceCharting linkini yapıştırıp <b>Güncelle</b>’ye bas.
+            </div>
+        </section>
+
+    </main>
+
+    <div id="toast" class="toast"></div>
+
+    <script type="module" src="/app.js"></script>
+
+</body>
+
+</html>
