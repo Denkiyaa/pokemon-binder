@@ -3,9 +3,27 @@ import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
 import fs from 'fs/promises';
 
-import puppeteer from 'puppeteer-core';
-import { access } from 'fs/promises';
-import path from 'path';
+// api/scraper.js
+// en üstlere ekleyin:
+const CHROME_BIN = process.env.CHROME_BIN || '/usr/bin/chromium'; // gerekirse chromium-browser
+
+// ... renderWithPuppeteer içindeki launch:
+const puppeteer = (await import('puppeteer-core')).default;
+const StealthPlugin = (await import('puppeteer-extra-plugin-stealth')).default;
+const puppeteerExtra = (await import('puppeteer-extra')).default;
+puppeteerExtra.use(StealthPlugin());
+
+const browser = await puppeteer.launch({
+    executablePath: CHROME_BIN,
+    headless: 'new',
+    args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--window-size=1280,900'
+    ]
+});
+
 
 const ABS = (href) => {
     try { return new URL(href, 'https://www.pricecharting.com').toString(); }
@@ -26,26 +44,30 @@ const upgradeImg = (u = '') => {
 };
 
 async function resolveChromePath() {
-    // 1) ENV'den verilmişse onu kullan
-    const envPath = process.env.CHROME_PATH;
-    if (envPath) return envPath;
+    // 1) ENV ve sabitler
+    const envPath = process.env.CHROME_PATH || process.env.CHROME_BIN || CHROME_BIN;
+    if (envPath) {
+        try { await access(envPath); return envPath; } catch { }
+    }
 
     // 2) yaygın konumlar
     const candidates = [
+        CHROME_BIN, // sabit
         '/usr/bin/google-chrome-stable',
         '/usr/bin/google-chrome',
-        '/usr/bin/chromium',
         '/usr/bin/chromium-browser',
-        '/snap/bin/chromium',       // bazı sunucularda snap
-    ];
+        '/usr/bin/chromium',
+        '/snap/bin/chromium',
+    ].filter(Boolean);
 
     for (const p of candidates) {
-        try { if (!p) continue; await access(p); return p; } catch { }
+        try { await access(p); return p; } catch { }
     }
 
-    // 3) son çare: hata
-    throw new Error('Chrome/Chromium bulunamadı. CHROME_PATH env ver veya chromium/google-chrome kur.');
+    // 3) hata
+    throw new Error('Chrome/Chromium bulunamadı. CHROME_PATH/CHROME_BIN env ver veya chromium/google-chrome kur.');
 }
+
 
 function parseWithCheerio(html) {
     const $ = cheerio.load(html);

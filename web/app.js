@@ -1,18 +1,19 @@
-// web/app.js
-// --- API helper (her istek /api prefix'li) ---
+// ===== API helper =====
 const API = '/api';
+
 async function getJSON(url, opts) {
   const r = await fetch(API + url, opts);
   if (!r.ok) throw new Error(`HTTP ${r.status} ${API + url}`);
   return r.json();
 }
+
+// ===== DOM helpers =====
 const $  = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-// img helper: 60/180 -> 300 dene
-const preferBig = (u) =>
-  u ? u.replace(/\/(60|180)\.(jpg|png)(\?.*)?$/i, '/300.$2$3') : '';
-const imgSrc   = (u) => (u ? `${API}/img?u=${encodeURIComponent(preferBig(u))}` : '');
+// image url helpers
+const preferBig = (u) => (u ? u.replace(/\/(60|180)\.(jpg|png)(\?.*)?$/i, '/300.$2$3') : '');
+const imgSrc    = (u) => (u ? `${API}/img?u=${encodeURIComponent(preferBig(u))}` : '');
 
 // toast
 const toast = (msg) => {
@@ -25,33 +26,49 @@ const toast = (msg) => {
 
 // tabs
 const setActiveTab = (name) => {
-  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
   $('#gridPanel').style.display   = name === 'grid'   ? '' : 'none';
   $('#binderPanel').style.display = name === 'binder' ? '' : 'none';
 };
 
-// global img onerror (boyut fallback)
+// global img error fallback (300 -> 180 -> 60 -> hide)
 window.onImgError = function onImgError(ev) {
   const img = ev?.target || ev;
   if (!img) return;
   let raw = '';
   try {
-    const u = new URL(img.src, location.href);
-    raw = u.searchParams.get('u') ? decodeURIComponent(u.searchParams.get('u')) : '';
+    const url = new URL(img.src, location.href);
+    raw = url.searchParams.get('u') ? decodeURIComponent(url.searchParams.get('u')) : '';
   } catch {}
   if (!raw) { img.style.display = 'none'; return; }
 
-  const nexts = [raw
-    .replace(/\/300\.(jpg|png)/i, '/180.$1')
-    .replace(/\/180\.(jpg|png)/i, '/60.$1')];
+  const steps = [
+    (u) => u.replace(/\/300\.(jpg|png)/i, '/180.$1'),
+    (u) => u.replace(/\/180\.(jpg|png)/i, '/60.$1'),
+    (u) => u.replace(/([?&])w=\d+/g, '$1').replace(/[?&]$/, ''),
+  ];
 
-  for (const nx of nexts) {
+  for (const fn of steps) {
+    const nx = fn(raw);
     if (nx !== raw) { img.src = `${API}/img?u=${encodeURIComponent(nx)}`; return; }
   }
   img.style.display = 'none';
 };
 
-// -------- Liste (Inbox) --------
+// loading mask opsiyonel (sayfaya #loading eklersen kullanılır)
+const showLoading = (msg = 'Yükleniyor…') => {
+  const el = document.getElementById('loading');
+  if (!el) return;
+  el.style.display = 'flex';
+  const m = el.querySelector('.msg');
+  if (m) m.textContent = msg;
+};
+const hideLoading = () => {
+  const el = document.getElementById('loading');
+  if (el) el.style.display = 'none';
+};
+
+// ===== Liste (Inbox) =====
 function renderGrid(cards) {
   const grid = $('#grid');
   $('#countTxt').textContent = cards.length;
@@ -69,7 +86,10 @@ function renderGrid(cards) {
     el.innerHTML = `
       <div class="row" style="align-items:flex-start">
         <input type="checkbox" class="sel" data-key="${key}" style="margin-right:8px;margin-top:6px">
-        <img class="thumb" src="${imgSrc(c.image_url)}" data-raw="${c.image_url || ''}" onerror="onImgError(event)">
+        <img class="thumb"
+             src="${imgSrc(c.image_url)}"
+             data-raw="${c.image_url || ''}"
+             onerror="onImgError(event)">
         <div>
           <div class="title">${c.name || '—'}</div>
           <div class="muted">${c.set_name || ''} ${c.collector_number ? '• ' + c.collector_number : ''}</div>
@@ -84,12 +104,12 @@ function renderGrid(cards) {
   const selectAll = $('#selectAll');
   if (selectAll) {
     selectAll.checked = true;
-    $$('#grid .sel').forEach(cb => cb.checked = true);
-    selectAll.onchange = () => $$('#grid .sel').forEach(cb => cb.checked = selectAll.checked);
+    $$('#grid .sel').forEach((cb) => (cb.checked = true));
+    selectAll.onchange = () => $$('#grid .sel').forEach((cb) => (cb.checked = selectAll.checked));
   }
 }
 
-// -------- Binder --------
+// ===== Binder =====
 const PER_PAGE = 9;
 let binderPage = 0;
 
@@ -113,25 +133,30 @@ function renderBinderSimple(cards) {
 
   const totalPages = Math.ceil(cards.length / PER_PAGE);
   binderPage = Math.max(0, Math.min(binderPage, totalPages - 1));
-
   const start = binderPage * PER_PAGE;
   const slice = cards.slice(start, start + PER_PAGE);
 
-  grid.innerHTML = slice.map(c => `
+  grid.innerHTML = slice.map((c) => `
     <div class="slot">
-      <img class="card" src="${imgSrc(c.image_url)}" data-raw="${c.image_url || ''}" onerror="onImgError(event)">
+      <img class="card"
+           src="${imgSrc(c.image_url)}"
+           data-raw="${c.image_url || ''}"
+           onerror="onImgError(event)">
       <div style="font-size:12px; overflow:hidden">
         <div style="font-weight:900; white-space:nowrap; text-overflow:ellipsis; overflow:hidden">${c.name || ''}</div>
         <div style="opacity:.8; white-space:nowrap; text-overflow:ellipsis; overflow:hidden">
-          ${c.set_name || ''} ${c.collector_number ? ('• ' + c.collector_number) : ''}
-        </div>
+          ${c.set_name || ''} ${c.collector_number ? ('• ' + c.collector_number) : ''}</div>
         <div>${c.condition || ''}</div>
-        <div style="font-weight:900; margin-top:4px">${c.price_value != null ? ('$' + Number(c.price_value).toFixed(2)) : '—'}</div>
+        <div style="font-weight:900; margin-top:4px">
+          ${c.price_value != null ? ('$' + Number(c.price_value).toFixed(2)) : '—'}
+        </div>
       </div>
     </div>
   `).join('');
 
-  for (let i = slice.length; i < PER_PAGE; i++) grid.innerHTML += `<div class="slot"></div>`;
+  for (let i = slice.length; i < PER_PAGE; i++) {
+    grid.innerHTML += `<div class="slot"></div>`;
+  }
 
   info.textContent = `Sayfa ${binderPage + 1}/${totalPages} • Kartlar ${start + 1}-${start + slice.length}`;
   prev.disabled = binderPage === 0;
@@ -141,22 +166,22 @@ function renderBinderSimple(cards) {
   next.onclick = () => { binderPage = Math.min(totalPages - 1, binderPage + 1); renderBinderSimple(cards); };
 }
 
-// -------- data adaptörleri --------
+// ===== Data adaptörleri =====
 async function loadProfiles() {
   const rows = await getJSON('/profiles');
-  const sel = $('#profileSel');
+  const sel  = $('#profileSel');
   const saved = localStorage.getItem('profile') || 'default';
   sel.innerHTML = rows.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
   sel.value = [...sel.options].some(o => o.value === saved) ? saved : 'default';
 }
 async function refreshInbox() {
-  const pid = $('#profileSel').value || 'default';
+  const pid   = $('#profileSel').value || 'default';
   const cards = await getJSON(`/inbox?profile=${encodeURIComponent(pid)}`);
   renderGrid(cards);
 }
 async function refreshBinder() {
-  const pid = $('#profileSel').value || 'default';
-  const bid = $('#binderSel').value || 'main';
+  const pid   = $('#profileSel').value || 'default';
+  const bid   = $('#binderSel').value || 'main';
   const cards = await getJSON(`/binder?profile=${encodeURIComponent(pid)}&binder=${encodeURIComponent(bid)}`);
   renderBinderSimple(cards);
 }
@@ -164,28 +189,31 @@ async function refreshUI() {
   await Promise.all([refreshInbox(), refreshBinder()]);
 }
 
-// -------- Boot --------
+// ===== Boot =====
 async function boot() {
   try {
     console.log('[UI] boot');
+
+    // tabs
     $$('.tab').forEach(t => t.addEventListener('click', () => setActiveTab(t.dataset.tab)));
+
+    // profiles
     await loadProfiles();
 
-    // başlangıç: liste boş, binder dolsun
+    // başlangıç: grid boş, binder’ı çek
     setActiveTab('grid');
     renderGrid([]);
     await refreshBinder();
 
-    const showLoading = (v) => { const el = document.getElementById('loading'); if (el) el.style.display = v ? 'flex' : 'none'; };
-
+    // import
     $('#importBtn').addEventListener('click', async () => {
-      const url    = $('#urlInput').value.trim();
-      const cookie = $('#cookieInput')?.value.trim();
+      const url     = $('#urlInput').value.trim();
+      const cookie  = $('#cookieInput')?.value.trim();
       const profile = $('#profileSel').value || 'default';
       if (!url) return alert('Lütfen PriceCharting linkini yapıştır');
 
       $('#importBtn').disabled = true;
-      showLoading(true);
+      showLoading('İçe aktarılıyor…');
       try {
         const r = await getJSON('/import', {
           method: 'POST',
@@ -198,17 +226,19 @@ async function boot() {
       } catch (e) {
         alert('İçe aktarma hatası: ' + e.message);
       } finally {
-        showLoading(false);
+        hideLoading();
         $('#importBtn').disabled = false;
       }
     });
 
+    // seçileni binder’a ekle
     $('#addToBinderBtn').addEventListener('click', async () => {
       const profile = $('#profileSel').value || 'default';
       const binder  = $('#binderSel').value || 'main';
-      const keys = $$('#grid .sel:checked').map(cb => cb.dataset.key).filter(Boolean);
+      const keys    = $$('#grid .sel:checked').map(cb => cb.dataset.key).filter(Boolean);
       if (!keys.length) return alert('Hiç kart seçmedin.');
-      showLoading(true);
+
+      showLoading('Binder’a ekleniyor…');
       try {
         await getJSON('/binder/add', {
           method: 'POST',
@@ -219,11 +249,14 @@ async function boot() {
         setActiveTab('binder');
         await refreshBinder();
         toast(`${keys.length} kart eklendi`);
+      } catch (e) {
+        alert('Binder ekleme hatası: ' + e.message);
       } finally {
-        showLoading(false);
+        hideLoading();
       }
     });
 
+    // profil oluştur
     $('#createProfileBtn').addEventListener('click', async () => {
       const name = prompt('Yeni profil adı:');
       if (!name) return;
@@ -240,6 +273,7 @@ async function boot() {
       await refreshBinder();
     });
 
+    // değişimler
     $('#profileSel').addEventListener('change', async () => {
       localStorage.setItem('profile', $('#profileSel').value);
       binderPage = 0;
@@ -255,4 +289,5 @@ async function boot() {
     $('#grid').innerHTML = `<div class="empty">Veri alınamadı.</div>`;
   }
 }
+
 boot();
