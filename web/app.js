@@ -1,5 +1,4 @@
 // web/app.js
-
 // --- API helper (her istek /api prefix'li) ---
 const API = '/api';
 async function getJSON(url, opts) {
@@ -7,8 +6,6 @@ async function getJSON(url, opts) {
   if (!r.ok) throw new Error(`HTTP ${r.status} ${API + url}`);
   return r.json();
 }
-
-// --- mini util ---
 const $  = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
