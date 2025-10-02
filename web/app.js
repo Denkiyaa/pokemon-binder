@@ -1,4 +1,18 @@
 // web/app.js
+
+const API = '/api';
+
+async function getJSON(url, opts) {
+  const r = await fetch(API + url, opts);
+  if (!r.ok) throw new Error(`HTTP ${r.status} ${API + url}`);
+  return r.json();
+}
+
+// KULLANIM:
+const rows = await getJSON('/profiles');
+const cards = await getJSON(`/inbox?profile=${encodeURIComponent(pid)}`);
+await getJSON('/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...}) });
+
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 // EN ÜSTTEKİ img fonksiyonlarını böyle yap:
