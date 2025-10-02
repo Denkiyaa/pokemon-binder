@@ -75,40 +75,76 @@ const IMG_DIR = path.join(DB_DIR, "imgcache");
 await fs.mkdir(IMG_DIR, { recursive: true }).catch(() => { });
 
 app.get("/img", async (req, res) => {
-    const u = (req.query.u || "").toString();
-    if (!u) return res.status(400).end("u required");
+    const original = (req.query.u || "").toString();
+    if (!original) return res.status(400).end("u required");
 
-    try {
+    // Küçük bir yardımcı: farklı boyut adayları üret
+    const candidates = (() => {
+        const list = [original];
+        const push = (u) => { if (u && !list.includes(u)) list.push(u); };
+
+        // boyut varyasyonları
+        if (/\/300\.(jpg|png)(\?|$)/i.test(original)) {
+            push(original.replace("/300.", "/180."));
+            push(original.replace("/300.", "/60."));
+        } else if (/\/180\.(jpg|png)(\?|$)/i.test(original)) {
+            push(original.replace("/180.", "/300."));
+            push(original.replace("/180.", "/60."));
+        } else if (/\/60\.(jpg|png)(\?|$)/i.test(original)) {
+            push(original.replace("/60.", "/180."));
+            push(original.replace("/60.", "/300."));
+        }
+        return list;
+    })();
+
+    // tek bir URL'i getirip kaydetmeyi dener
+    async function fetchOne(u) {
         const key = crypto.createHash("md5").update(u).digest("hex");
         const fp = path.join(IMG_DIR, key);
 
-        // diskten ver (varsa)
+        // 1) diskten
         try {
             const buf = await fs.readFile(fp);
             res.setHeader("Cache-Control", "public, max-age=604800, immutable");
             if (/\.png(\?|$)/i.test(u)) res.type("png"); else res.type("jpg");
-            return res.end(buf);
+            res.end(buf);
+            return true;
         } catch { }
 
-        // uzak kaynaktan çek + kaydet
-        const r = await fetch(u, {
-            headers: {
+        // 2) ağdan (header'lı → başarısızsa headersız)
+        const headersTry = [
+            {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
                 "Referer": "https://www.pricecharting.com/",
-                "Accept": "image/avif,image/webp,*/*"
-            }
-        });
-        if (!r.ok) return res.status(502).end(`fetch ${r.status}`);
-        const buf = Buffer.from(await r.arrayBuffer());
-        await fs.writeFile(fp, buf);
-        res.setHeader("Cache-Control", "public, max-age=604800, immutable");
-        if (/\.png(\?|$)/i.test(u)) res.type("png"); else res.type("jpg");
-        res.end(buf);
-    } catch (e) {
-        console.error("[IMG]", e);
-        res.status(500).end("img error");
+                "Accept": "image/avif,image/webp,*/*",
+            },
+            {} // headersız fallback
+        ];
+
+        for (const h of headersTry) {
+            try {
+                const r = await fetch(u, { headers: h });
+                if (!r.ok) continue;
+                const buf = Buffer.from(await r.arrayBuffer());
+                await fs.writeFile(fp, buf);
+                res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+                if (/\.png(\?|$)/i.test(u)) res.type("png"); else res.type("jpg");
+                res.end(buf);
+                return true;
+            } catch { }
+        }
+        return false;
     }
+
+    // adayları sırayla dene
+    for (const u of candidates) {
+        const ok = await fetchOne(u);
+        if (ok) return;
+    }
+
+    res.status(502).end("img fetch failed");
 });
+
 
 
 // statik web

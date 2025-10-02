@@ -1,7 +1,12 @@
 // web/app.js
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-const imgSrc = (u) => (u ? `/img?u=${encodeURIComponent(u)}` : '');
+// EN ÜSTTEKİ img fonksiyonlarını böyle yap:
+const preferBig = (u) =>
+  u ? u.replace(/\/(60|180)\.(jpg|png)(\?.*)?$/i, '/300.$2$3') : '';
+
+const imgSrc = (u) => (u ? `/img?u=${encodeURIComponent(preferBig(u))}` : '');
+const imgProxy = imgSrc; // aynısını kullan
 
 // -------- küçük yardımcılar --------
 const toast = (msg) => {
@@ -24,6 +29,79 @@ const getJSON = async (url, opts) => {
   return r.json();
 };
 
+// ---- Global image error handler ----
+window.onImgError = function onImgError(ev) {
+  const img = ev?.target || ev;
+  if (!img) return;
+
+  // Mevcut proxylanmış src içindeki "u" query'sini al
+  let currentRaw = "";
+  try {
+    const url = new URL(img.src, location.href);
+    currentRaw = url.searchParams.get("u") ? decodeURIComponent(url.searchParams.get("u")) : "";
+  } catch { }
+
+  const originalRaw = img.getAttribute("data-raw") || currentRaw || "";
+
+  // sırayla denenecek varyasyonlar
+  const makeVariants = (u) => {
+    const out = [u];
+    const add = (x) => { if (x && !out.includes(x)) out.push(x); };
+    if (/\/300\.(jpg|png)(\?|$)/i.test(u)) { add(u.replace("/300.", "/180.")); add(u.replace("/300.", "/60.")); }
+    if (/\/180\.(jpg|png)(\?|$)/i.test(u)) { add(u.replace("/180.", "/60.")); add(u.replace("/180.", "/300.")); }
+    if (/\/60\.(jpg|png)(\?|$)/i.test(u)) { add(u.replace("/60.", "/180.")); add(u.replace("/60.", "/300.")); }
+    return out;
+  };
+
+  const tried = img.getAttribute("data-tried")?.split("|").filter(Boolean) || [];
+  const variants = makeVariants(currentRaw || originalRaw).filter(v => !tried.includes(v));
+
+  if (variants.length) {
+    const next = variants.shift();
+    tried.push(next);
+    img.setAttribute("data-tried", tried.join("|"));
+    img.onerror = onImgError;
+    img.src = `/img?u=${encodeURIComponent(next)}`;
+    return;
+  }
+
+  // Hepsi biterse gizle
+  img.onerror = null;
+  img.style.display = "none";
+};
+
+
+// web/app.js (en üste yardımcıların yanına)
+function onImgError(imgEl) {
+  try {
+    const u = new URL(imgEl.src, location.origin);
+    const raw = u.searchParams.get('u') || '';
+    if (!raw) { imgEl.style.display = 'none'; return; }
+
+    // fallback zinciri: 300 -> 180 -> 60 -> (w param temizle)
+    if (/\/300\.(jpg|png)/i.test(raw)) {
+      const next = raw.replace(/\/300\.(jpg|png)/i, '/180.$1');
+      imgEl.src = `/img?u=${encodeURIComponent(next)}`;
+      return;
+    }
+    if (/\/180\.(jpg|png)/i.test(raw)) {
+      const next = raw.replace(/\/180\.(jpg|png)/i, '/60.$1');
+      imgEl.src = `/img?u=${encodeURIComponent(next)}`;
+      return;
+    }
+
+    // query de olabilir: w=...
+    if (/\bw=\d+/.test(raw)) {
+      const noW = raw.replace(/([?&])w=\d+/g, '$1').replace(/[?&]$/, '');
+      imgEl.src = `/img?u=${encodeURIComponent(noW)}`;
+      return;
+    }
+  } catch (_) { /* noop */ }
+
+  // son çare: gizle
+  imgEl.style.display = 'none';
+}
+
 // -------- Liste (Inbox) --------
 function renderGrid(cards) {
   const grid = $('#grid');
@@ -42,8 +120,7 @@ function renderGrid(cards) {
     el.innerHTML = `
       <div class="row" style="align-items:flex-start">
         <input type="checkbox" class="sel" data-key="${key}" style="margin-right:8px;margin-top:6px">
-        <img class="thumb" src="${imgSrc(c.image_url)}" onerror="this.style.display='none'">
-        <div>
+        <img class="thumb"src="${imgSrc(c.image_url)}"data-raw="${c.image_url || ''}"onerror="onImgError(event)"><div>
           <div class="title">${c.name || '—'}</div>
           <div class="muted">${c.set_name || ''} ${c.collector_number ? '• ' + c.collector_number : ''}</div>
           <div class="muted">${c.condition || ''}</div>
@@ -93,31 +170,31 @@ function renderBinderSimple(cards) {
   const start = binderPage * PER_PAGE;
   const slice = cards.slice(start, start + PER_PAGE);
 
-  grid.innerHTML = slice
-    .map(
-      (c) => `
-      <div class="slot">
-        <img class="card" src="${imgSrc(c.image_url)}" onerror="this.style.display='none'">
-        <div style="font-size:12px; overflow:hidden">
-          <div style="font-weight:900; white-space:nowrap; text-overflow:ellipsis; overflow:hidden">${c.name || ''}</div>
-          <div style="opacity:.8; white-space:nowrap; text-overflow:ellipsis; overflow:hidden">
-            ${c.set_name || ''} ${c.collector_number ? '• ' + c.collector_number : ''}
-          </div>
-          <div>${c.condition || ''}</div>
-          <div style="font-weight:900; margin-top:4px">${
-            c.price_value != null ? '$' + Number(c.price_value).toFixed(2) : '—'
-          }</div>
-        </div>
-      </div>`
-    )
-    .join('');
+  grid.innerHTML = slice.map((c) => `
+  <div class="slot">
+    <div class="imgwrap">
+    <img class="card"src="${imgSrc(c.image_url)}"data-raw="${c.image_url || ''}"onerror="onImgError(event)"></div>
+    <div class="meta" style="font-size:12px;">
+    <div class="meta-line" style="font-weight:900;">${c.name || ''}</div>
+    <div class="meta-line" style="opacity:.8;">${c.set_name || ''} ${c.collector_number ? '• ' + c.collector_number : ''}</div>
+
+      <div class="title" style="font-weight:900;">${c.name || ''}</div>
+      <div class="line" style="opacity:.8;">
+        ${c.set_name || ''} ${c.collector_number ? '• ' + c.collector_number : ''}
+      </div>
+      <div>${c.condition || ''}</div>
+      <div style="font-weight:900; margin-top:4px">${c.price_value != null ? '$' + Number(c.price_value).toFixed(2) : '—'
+    }</div>
+    </div>
+  </div>
+`).join('');
+
 
   // boş slotları 9’a tamamla
   for (let i = slice.length; i < PER_PAGE; i++) grid.innerHTML += `<div class="slot"></div>`;
 
-  info.textContent = `Sayfa ${binderPage + 1}/${totalPages} • Kartlar ${start + 1}-${
-    start + slice.length
-  }`;
+  info.textContent = `Sayfa ${binderPage + 1}/${totalPages} • Kartlar ${start + 1}-${start + slice.length
+    }`;
   prev.disabled = binderPage === 0;
   next.disabled = binderPage >= totalPages - 1;
 
@@ -131,14 +208,18 @@ function renderBinderSimple(cards) {
   };
 }
 
-// -------- Data --------
 async function loadProfiles() {
   const rows = await getJSON('/profiles');
   const sel = $('#profileSel');
-  const last = localStorage.getItem('profile') || 'default';
-  sel.innerHTML = rows.map((p) => `<option value="${p.id}">${p.name}</option>`).join('');
-  if ([...sel.options].some((o) => o.value === last)) sel.value = last;
+  const saved = localStorage.getItem('profile') || 'default';
+  sel.innerHTML = rows.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  if ([...sel.options].some(o => o.value === saved)) {
+    sel.value = saved;
+  } else {
+    sel.value = 'default';
+  }
 }
+
 
 async function refreshInbox() {
   const pid = $('#profileSel').value || 'default';
@@ -182,8 +263,6 @@ async function boot() {
       const profile = $('#profileSel').value || 'default';
       if (!url) return alert('Lütfen PriceCharting linkini yapıştır');
 
-      localStorage.setItem('pc_url', url);
-      if (cookie) localStorage.setItem('pc_cookie', cookie);
       $('#openPc').href = url;
 
       $('#importBtn').disabled = true;
@@ -251,12 +330,6 @@ async function boot() {
       await refreshBinder();
     });
 
-    // Son kullanılan URL (sadece input’a yaz)
-    const last = localStorage.getItem('pc_url');
-    if (last) {
-      $('#urlInput').value = last;
-      $('#openPc').href = last;
-    }
   } catch (e) {
     console.error('[UI] boot error', e);
     $('#grid').innerHTML = `<div class="empty">Veri alınamadı.</div>`;

@@ -161,16 +161,20 @@
             min-height: 560px;
         }
 
-        /* Kart slotları taşmasın; görsel/ metin dengeli */
         #binderPanel .slot {
-            background: #0f1736;
-            border: 1px dashed #2a3568;
-            border-radius: 12px;
-            padding: 10px;
-            display: flex;
+            display: grid;
+            grid-template-columns: 120px 1fr;
             gap: 10px;
-            min-height: 140px;
+            align-items: start;
+            overflow: hidden;
         }
+
+        #binderPanel .slot .meta-line {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
 
         /* Görseli sabitle – taşma yok */
         #binderPanel img.card {
@@ -180,6 +184,36 @@
             border-radius: 8px;
             background: #0e152b;
             flex: 0 0 auto;
+        }
+
+        #binderPanel .slot .imgwrap {
+            width: 120px;
+            aspect-ratio: 63 / 88;
+            /* Pokemon kart oranı ~ 63x88 mm */
+            background: #0e152b;
+            border-radius: 8px;
+            overflow: hidden;
+            flex: 0 0 auto;
+        }
+
+        #binderPanel .slot .imgwrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            /* dikdörtgen-kare farkı sorun değil */
+            display: block;
+        }
+
+        #binderPanel .slot .meta {
+            min-width: 0;
+            flex: 1;
+        }
+
+        #binderPanel .slot .meta .title,
+        #binderPanel .slot .meta .line {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* Küçük ekranlarda 2 sütun */

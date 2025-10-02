@@ -13,11 +13,11 @@ const pickImg = ($row) =>
     $row.find('img').first().attr('data-src') ||
     $row.find('img').first().attr('src') || '';
 
+// dosya başına ekle
 const upgradeImg = (u = '') => {
     if (!u) return '';
-    // .../60.jpg -> .../180.jpg, w=60 -> w=300
-    u = u.replace(/\/60\.(jpg|png)(\?.*)?$/i, '/180.$1$2');
-    u = u.replace(/([?&])w=\d+/i, '$1w=300');
+    u = u.replace(/\/(60|180)\.(jpg|png)(\?.*)?$/i, '/300.$2$3'); // 60/180 -> 300
+    u = u.replace(/([?&])w=\d+/i, '$1w=480');                     // varsa w= paramını büyüt
     return ABS(u);
 };
 
@@ -47,8 +47,8 @@ function parseWithCheerio(html) {
             set_name = texts[0] || '';
         }
 
-        // görsel
-        const raw = pickImg($tr /* veya $row */);
+        const raw = $tr.find('td.photo img').first().attr('data-src')
+            || $tr.find('td.photo img').first().attr('src') || '';
         const image_url = upgradeImg(raw);
 
         // fiyat
