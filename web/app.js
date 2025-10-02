@@ -29,6 +29,33 @@ const getJSON = async (url, opts) => {
   return r.json();
 };
 
+
+function showLoading(msg = "Yükleniyor…") {
+  const m = document.getElementById('loadMask');
+  const t = document.getElementById('loadMsg');
+  if (!m || !t) return;
+  t.textContent = msg;
+  m.style.display = 'block';
+}
+function hideLoading() {
+  const m = document.getElementById('loadMask');
+  if (m) m.style.display = 'none';
+}
+
+// Buton üstünde mini spinner (opsiyonel)
+function spinBtn(btn, spinning = true, labelWhenStop = null) {
+  if (!btn) return;
+  if (spinning) {
+    btn.dataset._label = btn.textContent;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="btnspin" style="display:inline-block;width:16px;height:16px;border:2px solid #1f2b56;border-top-color:#fff;border-radius:50%;vertical-align:-2px;margin-right:8px;animation:spin .8s linear infinite"></span> Çalışıyor…`;
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = labelWhenStop ?? (btn.dataset._label || 'Tamam');
+  }
+}
+
+
 // ---- Global image error handler ----
 window.onImgError = function onImgError(ev) {
   const img = ev?.target || ev;
@@ -256,49 +283,63 @@ async function boot() {
     renderGrid([]); // başlangıçta boş göster
     await refreshBinder();
 
-    // Import
     $('#importBtn').addEventListener('click', async () => {
       const url = $('#urlInput').value.trim();
       const cookie = $('#cookieInput')?.value.trim();
       const profile = $('#profileSel').value || 'default';
       if (!url) return alert('Lütfen PriceCharting linkini yapıştır');
 
+      localStorage.setItem('pc_url', url);
+      if (cookie) localStorage.setItem('pc_cookie', cookie);
       $('#openPc').href = url;
 
-      $('#importBtn').disabled = true;
+      const btn = $('#importBtn');
+      showLoading('Koleksiyon içe aktarılıyor…');
+      spinBtn(btn, true);
+
       try {
         const r = await getJSON('/import', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url, cookie, profile }),
         });
-        await refreshInbox(); // importtan sonra sadece inbox’ı doldur
+        await refreshInbox();
         setActiveTab('grid');
         toast(`İçe aktarılan: ${r.imported ?? 0}`);
       } catch (e) {
         alert('İçe aktarma hatası: ' + e.message);
       } finally {
-        $('#importBtn').disabled = false;
+        hideLoading();
+        spinBtn(btn, false, 'Güncelle');
       }
     });
 
-    // Seçileni binder’a ekle
+
     $('#addToBinderBtn').addEventListener('click', async () => {
       const profile = $('#profileSel').value || 'default';
       const binder = $('#binderSel').value || 'main';
-      const keys = $$('#grid .sel:checked').map((cb) => cb.dataset.key).filter(Boolean);
+      const keys = $$('#grid .sel:checked').map(cb => cb.dataset.key).filter(Boolean);
       if (!keys.length) return alert('Hiç kart seçmedin.');
 
-      await getJSON('/binder/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile, binder, cardKeys: keys }),
-      });
-      binderPage = 0;
-      setActiveTab('binder');
-      await refreshBinder();
-      toast(`${keys.length} kart eklendi`);
+      showLoading('Binder’a ekleniyor…');
+
+      try {
+        await getJSON('/binder/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profile, binder, cardKeys: keys }),
+        });
+        binderPage = 0;
+        setActiveTab('binder');
+        await refreshBinder();
+        toast(`${keys.length} kart eklendi`);
+      } catch (e) {
+        alert('Binder ekleme hatası: ' + e.message);
+      } finally {
+        hideLoading();
+      }
     });
+
 
     // Yeni profil
     $('#createProfileBtn').addEventListener('click', async () => {

@@ -37,7 +37,7 @@
             <div class="tab active" data-tab="grid">Liste</div>
             <div class="tab" data-tab="binder">Binder</div>
         </div>
-        
+
         <section id="gridPanel" class="panel">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
                 <div class="counts"><span id="countTxt">0</span> kart</div>
@@ -82,6 +82,13 @@
     <div id="toast" class="toast"></div>
 
     <script type="module" src="/app.js"></script>
+    <style>
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
 
 </body>
 
