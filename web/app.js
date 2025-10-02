@@ -9,15 +9,15 @@ async function getJSON(url, opts) {
 }
 
 // --- mini util ---
-const $ = (sel) => document.querySelector(sel);
+const $  = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
+// img helper: 60/180 -> 300 dene
 const preferBig = (u) =>
   u ? u.replace(/\/(60|180)\.(jpg|png)(\?.*)?$/i, '/300.$2$3') : '';
+const imgSrc   = (u) => (u ? `${API}/img?u=${encodeURIComponent(preferBig(u))}` : '');
 
-const imgSrc = (u) => (u ? `/img?u=${encodeURIComponent(preferBig(u))}` : '');
-const imgProxy = imgSrc; // aynı
-
+// toast
 const toast = (msg) => {
   const t = $('#toast');
   if (!t) return;
@@ -26,44 +26,33 @@ const toast = (msg) => {
   setTimeout(() => (t.style.display = 'none'), 2500);
 };
 
+// tabs
 const setActiveTab = (name) => {
-  $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
-  $('#gridPanel').style.display = name === 'grid' ? '' : 'none';
+  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  $('#gridPanel').style.display   = name === 'grid'   ? '' : 'none';
   $('#binderPanel').style.display = name === 'binder' ? '' : 'none';
 };
 
-const showLoading = (v) => {
-  const el = document.getElementById('loading');
-  if (el) el.style.display = v ? 'flex' : 'none';
-};
-
-// ---- Tek image error handler ----
-function onImgError(imgEl) {
+// global img onerror (boyut fallback)
+window.onImgError = function onImgError(ev) {
+  const img = ev?.target || ev;
+  if (!img) return;
+  let raw = '';
   try {
-    // proksinin içindeki orijinal URL
-    const u = new URL(imgEl.src, location.origin);
-    const rawEnc = u.searchParams.get('u') || '';
-    const raw = rawEnc ? decodeURIComponent(rawEnc) : (imgEl.getAttribute('data-raw') || '');
-    if (!raw) { imgEl.style.display = 'none'; return; }
+    const u = new URL(img.src, location.href);
+    raw = u.searchParams.get('u') ? decodeURIComponent(u.searchParams.get('u')) : '';
+  } catch {}
+  if (!raw) { img.style.display = 'none'; return; }
 
-    // sırayla 300 -> 180 -> 60 -> w= temizle
-    if (/\/300\.(jpg|png)(\?|$)/i.test(raw)) {
-      imgEl.src = `/img?u=${encodeURIComponent(raw.replace(/\/300\.(jpg|png)/i, '/180.$1'))}`;
-      return;
-    }
-    if (/\/180\.(jpg|png)(\?|$)/i.test(raw)) {
-      imgEl.src = `/img?u=${encodeURIComponent(raw.replace(/\/180\.(jpg|png)/i, '/60.$1'))}`;
-      return;
-    }
-    if (/\bw=\d+/.test(raw)) {
-      const noW = raw.replace(/([?&])w=\d+/g, '$1').replace(/[?&]$/, '');
-      imgEl.src = `/img?u=${encodeURIComponent(noW)}`;
-      return;
-    }
-  } catch { /* noop */ }
+  const nexts = [raw
+    .replace(/\/300\.(jpg|png)/i, '/180.$1')
+    .replace(/\/180\.(jpg|png)/i, '/60.$1')];
 
-  imgEl.style.display = 'none';
-}
+  for (const nx of nexts) {
+    if (nx !== raw) { img.src = `${API}/img?u=${encodeURIComponent(nx)}`; return; }
+  }
+  img.style.display = 'none';
+};
 
 // -------- Liste (Inbox) --------
 function renderGrid(cards) {
@@ -83,10 +72,7 @@ function renderGrid(cards) {
     el.innerHTML = `
       <div class="row" style="align-items:flex-start">
         <input type="checkbox" class="sel" data-key="${key}" style="margin-right:8px;margin-top:6px">
-        <img class="thumb"
-             src="${imgSrc(c.image_url)}"
-             data-raw="${c.image_url || ''}"
-             onerror="onImgError(this)">
+        <img class="thumb" src="${imgSrc(c.image_url)}" data-raw="${c.image_url || ''}" onerror="onImgError(event)">
         <div>
           <div class="title">${c.name || '—'}</div>
           <div class="muted">${c.set_name || ''} ${c.collector_number ? '• ' + c.collector_number : ''}</div>
@@ -101,9 +87,8 @@ function renderGrid(cards) {
   const selectAll = $('#selectAll');
   if (selectAll) {
     selectAll.checked = true;
-    $$('#grid .sel').forEach((cb) => (cb.checked = true));
-    selectAll.onchange = () =>
-      $$('#grid .sel').forEach((cb) => (cb.checked = selectAll.checked));
+    $$('#grid .sel').forEach(cb => cb.checked = true);
+    selectAll.onchange = () => $$('#grid .sel').forEach(cb => cb.checked = selectAll.checked);
   }
 }
 
@@ -112,12 +97,11 @@ const PER_PAGE = 9;
 let binderPage = 0;
 
 function renderBinderSimple(cards) {
-  const grid = $('#binderGrid');
-  const info = $('#pageInfo');
+  const grid  = $('#binderGrid');
+  const info  = $('#pageInfo');
   const empty = $('#binderEmpty');
-  const prev = $('#prevBtn');
-  const next = $('#nextBtn');
-
+  const prev  = $('#prevBtn');
+  const next  = $('#nextBtn');
   if (!grid || !info || !empty || !prev || !next) return;
 
   if (!cards.length) {
@@ -136,17 +120,14 @@ function renderBinderSimple(cards) {
   const start = binderPage * PER_PAGE;
   const slice = cards.slice(start, start + PER_PAGE);
 
-  grid.innerHTML = slice.map((c) => `
+  grid.innerHTML = slice.map(c => `
     <div class="slot">
-      <div class="imgwrap">
-        <img class="card"
-             src="${imgSrc(c.image_url)}"
-             data-raw="${c.image_url || ''}"
-             onerror="onImgError(this)">
-      </div>
-      <div class="meta" style="font-size:12px;">
-        <div class="meta-line" style="font-weight:900;">${c.name || ''}</div>
-        <div class="meta-line" style="opacity:.8;">${c.set_name || ''} ${c.collector_number ? '• ' + c.collector_number : ''}</div>
+      <img class="card" src="${imgSrc(c.image_url)}" data-raw="${c.image_url || ''}" onerror="onImgError(event)">
+      <div style="font-size:12px; overflow:hidden">
+        <div style="font-weight:900; white-space:nowrap; text-overflow:ellipsis; overflow:hidden">${c.name || ''}</div>
+        <div style="opacity:.8; white-space:nowrap; text-overflow:ellipsis; overflow:hidden">
+          ${c.set_name || ''} ${c.collector_number ? ('• ' + c.collector_number) : ''}
+        </div>
         <div>${c.condition || ''}</div>
         <div style="font-weight:900; margin-top:4px">${c.price_value != null ? ('$' + Number(c.price_value).toFixed(2)) : '—'}</div>
       </div>
@@ -163,7 +144,7 @@ function renderBinderSimple(cards) {
   next.onclick = () => { binderPage = Math.min(totalPages - 1, binderPage + 1); renderBinderSimple(cards); };
 }
 
-// -------- Data adaptörleri --------
+// -------- data adaptörleri --------
 async function loadProfiles() {
   const rows = await getJSON('/profiles');
   const sel = $('#profileSel');
@@ -171,7 +152,6 @@ async function loadProfiles() {
   sel.innerHTML = rows.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
   sel.value = [...sel.options].some(o => o.value === saved) ? saved : 'default';
 }
-
 async function refreshInbox() {
   const pid = $('#profileSel').value || 'default';
   const cards = await getJSON(`/inbox?profile=${encodeURIComponent(pid)}`);
@@ -183,26 +163,26 @@ async function refreshBinder() {
   const cards = await getJSON(`/binder?profile=${encodeURIComponent(pid)}&binder=${encodeURIComponent(bid)}`);
   renderBinderSimple(cards);
 }
+async function refreshUI() {
+  await Promise.all([refreshInbox(), refreshBinder()]);
+}
 
 // -------- Boot --------
 async function boot() {
   try {
     console.log('[UI] boot');
-
-    // Sekmeler
-    $$('.tab').forEach((t) => t.addEventListener('click', () => setActiveTab(t.dataset.tab)));
-
-    // Profilleri yükle
+    $$('.tab').forEach(t => t.addEventListener('click', () => setActiveTab(t.dataset.tab)));
     await loadProfiles();
 
-    // Başlangıç: GRID boş, sadece binder'ı doldur
+    // başlangıç: liste boş, binder dolsun
     setActiveTab('grid');
     renderGrid([]);
     await refreshBinder();
 
-    // Import
+    const showLoading = (v) => { const el = document.getElementById('loading'); if (el) el.style.display = v ? 'flex' : 'none'; };
+
     $('#importBtn').addEventListener('click', async () => {
-      const url = $('#urlInput').value.trim();
+      const url    = $('#urlInput').value.trim();
       const cookie = $('#cookieInput')?.value.trim();
       const profile = $('#profileSel').value || 'default';
       if (!url) return alert('Lütfen PriceCharting linkini yapıştır');
@@ -213,7 +193,7 @@ async function boot() {
         const r = await getJSON('/import', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, cookie, profile }),
+          body: JSON.stringify({ url, cookie, profile })
         });
         await refreshInbox();
         setActiveTab('grid');
@@ -226,39 +206,34 @@ async function boot() {
       }
     });
 
-    // Seçileni binder'a ekle
     $('#addToBinderBtn').addEventListener('click', async () => {
       const profile = $('#profileSel').value || 'default';
-      const binder = $('#binderSel').value || 'main';
+      const binder  = $('#binderSel').value || 'main';
       const keys = $$('#grid .sel:checked').map(cb => cb.dataset.key).filter(Boolean);
       if (!keys.length) return alert('Hiç kart seçmedin.');
-
       showLoading(true);
       try {
         await getJSON('/binder/add', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ profile, binder, cardKeys: keys }),
+          body: JSON.stringify({ profile, binder, cardKeys: keys })
         });
         binderPage = 0;
         setActiveTab('binder');
         await refreshBinder();
         toast(`${keys.length} kart eklendi`);
-      } catch (e) {
-        alert('Binder ekleme hatası: ' + e.message);
       } finally {
         showLoading(false);
       }
     });
 
-    // Yeni profil
     $('#createProfileBtn').addEventListener('click', async () => {
       const name = prompt('Yeni profil adı:');
       if (!name) return;
       const r = await getJSON('/profiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name })
       });
       await loadProfiles();
       $('#profileSel').value = r.id;
@@ -268,25 +243,19 @@ async function boot() {
       await refreshBinder();
     });
 
-    // Değişimler
     $('#profileSel').addEventListener('change', async () => {
       localStorage.setItem('profile', $('#profileSel').value);
       binderPage = 0;
-      await Promise.all([refreshInbox(), refreshBinder()]);
+      await refreshUI();
     });
     $('#binderSel').addEventListener('change', async () => {
       binderPage = 0;
       await refreshBinder();
     });
 
-    // URL’yi inputa taşı (cache-bust için versiyonlu script kullandığından emin ol)
-    const last = localStorage.getItem('pc_url');
-    if (last) { $('#urlInput').value = last; $('#openPc').href = last; }
-
   } catch (e) {
     console.error('[UI] boot error', e);
     $('#grid').innerHTML = `<div class="empty">Veri alınamadı.</div>`;
   }
 }
-
 boot();
