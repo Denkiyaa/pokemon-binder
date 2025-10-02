@@ -166,8 +166,25 @@
             grid-template-columns: 120px 1fr;
             gap: 10px;
             align-items: start;
-            overflow: hidden;
+            background: #0f1736;
+            border: 1px dashed #2a3568;
+            border-radius: 12px;
+            padding: 10px;
         }
+
+        #binderPanel img.card {
+            width: 120px;
+            height: auto;
+            object-fit: contain;
+        }
+
+        #binderPanel .slot .title,
+        #binderPanel .slot .muted {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
 
         #binderPanel .slot .meta-line {
             white-space: nowrap;

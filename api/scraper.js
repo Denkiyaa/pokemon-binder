@@ -3,6 +3,10 @@ import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
 import fs from 'fs/promises';
 
+import puppeteer from 'puppeteer-core';
+import { access } from 'fs/promises';
+import path from 'path';
+
 const ABS = (href) => {
     try { return new URL(href, 'https://www.pricecharting.com').toString(); }
     catch { return ''; }
@@ -20,6 +24,28 @@ const upgradeImg = (u = '') => {
     u = u.replace(/([?&])w=\d+/i, '$1w=480');                     // varsa w= paramını büyüt
     return ABS(u);
 };
+
+async function resolveChromePath() {
+    // 1) ENV'den verilmişse onu kullan
+    const envPath = process.env.CHROME_PATH;
+    if (envPath) return envPath;
+
+    // 2) yaygın konumlar
+    const candidates = [
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser',
+        '/snap/bin/chromium',       // bazı sunucularda snap
+    ];
+
+    for (const p of candidates) {
+        try { if (!p) continue; await access(p); return p; } catch { }
+    }
+
+    // 3) son çare: hata
+    throw new Error('Chrome/Chromium bulunamadı. CHROME_PATH env ver veya chromium/google-chrome kur.');
+}
 
 function parseWithCheerio(html) {
     const $ = cheerio.load(html);
@@ -82,12 +108,10 @@ function parseWithCheerio(html) {
 
 
 async function renderWithPuppeteer(url, cookieStr) {
-    const puppeteer = (await import('puppeteer-extra')).default;
-    const StealthPlugin = (await import('puppeteer-extra-plugin-stealth')).default;
-    puppeteer.use(StealthPlugin());
-
+    const exe = await resolveChromePath();
     const browser = await puppeteer.launch({
         headless: 'new',
+        executablePath: exe,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
