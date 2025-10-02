@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fetch from 'node-fetch';
 import crypto from 'crypto';
+import mysql from 'mysql2/promise';
 import { fetchCollection } from './scraper.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,37 +16,58 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ---- paths (JSON storage) ----
+// ---------- MariaDB (yalnızca profiles) ----------
+const pool = await mysql.createPool({
+  host:     process.env.DB_HOST || 'localhost',
+  user:     process.env.DB_USER || 'binderapp',
+  password: process.env.DB_PASS || '',
+  database: process.env.DB_NAME || 'pokemon_binder',
+  waitForConnections: true,
+  connectionLimit: 10,
+});
+
+// (güvenlik için bir kez tabloyu ve default kaydı garanti altına alalım)
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS profiles (
+    id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+`);
+await pool.query(`INSERT IGNORE INTO profiles (id,name) VALUES ('default','default')`);
+
+// DB tabanlı profile helpers
+async function listProfiles() {
+  const [rows] = await pool.query(`SELECT id, name FROM profiles ORDER BY name`);
+  return rows;
+}
+async function createProfile(name = 'profile') {
+  const base = name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, '') || 'profile';
+  let id = base, n = 1;
+  // benzersiz yap
+  for (;;) {
+    try {
+      await pool.query(`INSERT INTO profiles (id, name) VALUES (?, ?)`, [id, name]);
+      break;
+    } catch (e) {
+      if (e?.code === 'ER_DUP_ENTRY') { id = `${base}-${n++}`; continue; }
+      throw e;
+    }
+  }
+  return { id, name };
+}
+
+// ---------- JSON storage (inbox/binder + image cache) ----------
 const DB_DIR = path.join(__dirname, 'data');
 await fs.mkdir(DB_DIR, { recursive: true }).catch(() => {});
 const IMG_DIR = path.join(DB_DIR, 'imgcache');
 await fs.mkdir(IMG_DIR, { recursive: true }).catch(() => {});
 
-const pProfiles          = () => path.join(DB_DIR, 'profiles.json');
-const pInbox   = (pid)   => path.join(DB_DIR, `inbox-${pid}.json`);
-const pBinder  = (p,b)   => path.join(DB_DIR, `binder-${p}-${b}.json`);
+const pInbox  = (pid) => path.join(DB_DIR, `inbox-${pid}.json`);
+const pBinder = (p,b) => path.join(DB_DIR, `binder-${p}-${b}.json`);
 
 const readJSON  = async (p, fb) => { try { return JSON.parse(await fs.readFile(p, 'utf8')); } catch { return fb; } };
 const writeJSON = (p, v) => fs.writeFile(p, JSON.stringify(v, null, 2), 'utf8');
-
-const listProfiles = async () => {
-  let rows = await readJSON(pProfiles(), null);
-  if (!rows || !Array.isArray(rows) || !rows.length) {
-    rows = [{ id: 'default', name: 'default' }];
-    await writeJSON(pProfiles(), rows);
-  }
-  return rows;
-};
-const createProfile = async (name='profile') => {
-  const profiles = await listProfiles();
-  const slugBase = name.trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9_-]/g,'') || 'profile';
-  let id = slugBase, n=1;
-  while (profiles.some(p => p.id === id)) id = `${slugBase}-${n++}`;
-  const row = { id, name };
-  profiles.push(row);
-  await writeJSON(pProfiles(), profiles);
-  return row;
-};
 
 const cardKey = (c) => (c?.pc_item_id || c?.pc_url || '') + '|' + (c?.price_value ?? '');
 const dedupCards = (arr=[]) => {
@@ -62,6 +84,23 @@ const api = express.Router();
 
 // health
 api.get('/health', (_req,res)=> res.json({ok:true}));
+
+// profiles (DB)
+api.get('/profiles', async (_req,res) => {
+  try { res.json(await listProfiles()); }
+  catch (e) { console.error('[profiles][get]', e); res.status(500).json({error:'profiles get failed'}); }
+});
+api.post('/profiles', async (req,res) => {
+  try {
+    const name = (req.body?.name || '').toString().trim();
+    if (!name) return res.status(400).json({ error:'name required' });
+    const row = await createProfile(name);
+    res.json(row);
+  } catch (e) {
+    console.error('[profiles][post]', e);
+    res.status(500).json({error:'profile create failed'});
+  }
+});
 
 // image proxy + disk cache (+fallback sizes)
 api.get('/img', async (req,res) => {
@@ -106,15 +145,7 @@ api.get('/img', async (req,res) => {
   res.status(502).end('img fetch failed');
 });
 
-// profiles
-api.get('/profiles', async (_req,res)=> res.json(await listProfiles()));
-api.post('/profiles', async (req,res)=> {
-  const name = (req.body?.name || '').toString().trim();
-  if (!name) return res.status(400).json({ error:'name required' });
-  res.json(await createProfile(name));
-});
-
-// inbox / binder
+// inbox / binder (JSON)
 api.get('/inbox',  async (req,res)=> {
   const pid = (req.query.profile || 'default').toString();
   res.json(await readJSON(pInbox(pid), []));
@@ -136,7 +167,7 @@ api.post('/binder/add', async (req,res)=> {
   res.json({ added: toAdd.length, total: merged.length });
 });
 
-// import
+// import (Listeyi inbox.json’a yazar)
 api.post('/import', async (req,res)=> {
   try {
     const url    = (req.body?.url    || '').toString();
