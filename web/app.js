@@ -283,25 +283,21 @@ async function boot() {
     renderGrid([]); // başlangıçta boş göster
     await refreshBinder();
 
+    const showLoading = (v) => { const el = document.getElementById('loading'); if (el) el.style.display = v ? 'flex' : 'none'; };
+
+    // import click handler içinde:
     $('#importBtn').addEventListener('click', async () => {
       const url = $('#urlInput').value.trim();
       const cookie = $('#cookieInput')?.value.trim();
       const profile = $('#profileSel').value || 'default';
       if (!url) return alert('Lütfen PriceCharting linkini yapıştır');
 
-      localStorage.setItem('pc_url', url);
-      if (cookie) localStorage.setItem('pc_cookie', cookie);
-      $('#openPc').href = url;
-
-      const btn = $('#importBtn');
-      showLoading('Koleksiyon içe aktarılıyor…');
-      spinBtn(btn, true);
-
+      $('#importBtn').disabled = true;
+      showLoading(true);
       try {
         const r = await getJSON('/import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, cookie, profile }),
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, cookie, profile })
         });
         await refreshInbox();
         setActiveTab('grid');
@@ -309,8 +305,8 @@ async function boot() {
       } catch (e) {
         alert('İçe aktarma hatası: ' + e.message);
       } finally {
-        hideLoading();
-        spinBtn(btn, false, 'Güncelle');
+        showLoading(false);
+        $('#importBtn').disabled = false;
       }
     });
 
