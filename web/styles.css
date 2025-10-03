@@ -1,123 +1,381 @@
-:root{
-  --bg:#0b1020; --panel:#121a35; --panel2:#0f1430;
-  --text:#e9eefb; --muted:#a8b2d1; --accent:#6aa2ff; --accent2:#7aefc6;
+:root {
+    --bg: #0b1020;
+    --panel: #121a35;
+    --panel2: #0f1430;
+    --text: #e9eefb;
+    --muted: #a8b2d1;
+    --accent: #6aa2ff;
+    --accent2: #7aefc6;
 }
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0; background:var(--bg); color:var(--text);
-  font-family:ui-sans-serif,system-ui,Arial
+
+* {
+    box-sizing: border-box
+}
+
+html,
+body {
+    height: 100%
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, Arial
 }
 
 /* Header */
-header{
-  position:sticky; top:0; z-index:10;
-  background:linear-gradient(180deg,#0d1431,#0b1020 80%);
-  border-bottom:1px solid #1a2146;
+header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(180deg, #0d1431, #0b1020 80%);
+    border-bottom: 1px solid #1a2146;
 }
-.wrap{max-width:1100px; margin:0 auto; padding:16px}
-.bar{display:flex; gap:12px; align-items:center}
-h1{margin:0; font-size:20px; font-weight:900; letter-spacing:.4px}
 
-input[type=text], select, button{
-  padding:12px 14px; border-radius:12px; border:1px solid #223255;
+.wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 16px
 }
-input[type=text], select{
-  background:var(--panel2); color:var(--text); outline:none
+
+.bar {
+    display: flex;
+    gap: 12px;
+    align-items: center
 }
-button{
-  border:0; background:var(--accent); color:#06112b; font-weight:800; cursor:pointer
+
+h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: .4px
 }
-button#addToBinderBtn{background:var(--accent2); color:#06112b}
+
+input[type=text],
+select,
+button {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #223255;
+}
+
+input[type=text],
+select {
+    background: var(--panel2);
+    color: var(--text);
+    outline: none
+}
+
+button {
+    border: 0;
+    background: var(--accent);
+    color: #06112b;
+    font-weight: 800;
+    cursor: pointer
+}
+
+button#addToBinderBtn {
+    background: var(--accent2);
+    color: #06112b
+}
 
 /* Main */
-main.wrap{display:grid; grid-template-columns:1fr; gap:18px}
-.tabs{display:flex; gap:10px}
-.tab{
-  padding:10px 12px; border-radius:10px; cursor:pointer;
-  background:#121a35; border:1px solid #1a2146;
+main.wrap {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px
 }
-.tab.active{background:#18204a; color:#fff; border-color:#28306a}
-.panel{
-  background:#121a35; border:1px solid #1a2146; border-radius:16px;
-  padding:16px; box-shadow:0 24px 60px rgba(0,0,0,.25);
+
+.tabs {
+    display: flex;
+    gap: 10px
+}
+
+.tab {
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    background: #121a35;
+    border: 1px solid #1a2146;
+}
+
+.tab.active {
+    background: #18204a;
+    color: #fff;
+    border-color: #28306a
+}
+
+.panel {
+    background: #121a35;
+    border: 1px solid #1a2146;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .25);
 }
 
 /* Liste (Inbox) */
-.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px}
-.card{background:#121a35; border:1px solid #1a2146; border-radius:14px; padding:12px}
-.row{display:flex; gap:12px; align-items:center}
-.title{font-weight:900; font-size:15px}
-.muted{color:var(--muted); font-size:12px}
-.price{font-weight:900; margin-top:6px; color:var(--accent2)}
-.counts{color:var(--muted); font-size:13px}
-a.link{color:#8ab4ff; text-decoration:none}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px
+}
+
+.card {
+    background: #121a35;
+    border: 1px solid #1a2146;
+    border-radius: 14px;
+    padding: 12px
+}
+
+.row {
+    display: flex;
+    gap: 12px;
+    align-items: center
+}
+
+.title {
+    font-weight: 900;
+    font-size: 15px
+}
+
+.muted {
+    color: var(--muted);
+    font-size: 12px
+}
+
+.price {
+    font-weight: 900;
+    margin-top: 6px;
+    color: var(--accent2)
+}
+
+.counts {
+    color: var(--muted);
+    font-size: 13px
+}
+
+a.link {
+    color: #8ab4ff;
+    text-decoration: none
+}
 
 /* Liste küçük görsel — Sadece grid içine özelle */
-.grid img.thumb{
-  width:80px; height:112px; object-fit:cover;
-  border-radius:6px; background:#0a0f27; flex:0 0 auto;
+.grid img.thumb {
+    width: 80px;
+    height: 112px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #0a0f27;
+    flex: 0 0 auto;
 }
 
 /* Binder 3x3 – responsive, oran sabit */
-.flip-wrap{display:flex; justify-content:center; align-items:flex-start}
-#binderPanel .grid9{
-  --maxw:980px;
-  width:min(100%,var(--maxw));
-  margin-inline:auto; padding-inline:clamp(8px,2vw,16px);
-  display:grid; grid-template-columns:repeat(3,1fr); gap:12px; min-height:560px;
+.flip-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start
 }
-#binderPanel .slot{
-  background:#0f1736; border:1px dashed #2a3568; border-radius:12px; padding:10px;
-  display:block;
+
+#binderPanel .grid9 {
+    --maxw: 980px;
+    width: min(100%, var(--maxw));
+    margin-inline: auto;
+    padding-inline: clamp(8px, 2vw, 16px);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    min-height: 560px;
+}
+
+#binderPanel .slot {
+    background: #0f1736;
+    border: 1px dashed #2a3568;
+    border-radius: 12px;
+    padding: 10px;
+    display: block;
 }
 
 /* Kart oranını sabitleyen çerçeve */
-.imgwrap{
-  position:relative; width:100%;
-  /* Pokemon kartı ~63x88mm → 63/88 ≈ 0.716 → % ile sabitleme */
-  padding-top:140%;
-  overflow:hidden; border-radius:10px; background:#0a0f27;
+.imgwrap {
+    position: relative;
+    width: 100%;
+    /* Pokemon kartı ~63x88mm → 63/88 ≈ 0.716 → % ile sabitleme */
+    padding-top: 140%;
+    overflow: hidden;
+    border-radius: 10px;
+    background: #0a0f27;
 }
+
 /* Binder içindeki img (kart) */
-.imgwrap img.card{
-  position:absolute; inset:0; width:100%; height:100%;
-  object-fit:cover; image-rendering:auto; display:block;
+.imgwrap img.card {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: auto;
+    display: block;
 }
 
-.meta{margin-top:8px; font-size:12px}
-.meta-line{white-space:nowrap; text-overflow:ellipsis; overflow:hidden}
+.meta {
+    margin-top: 8px;
+    font-size: 12px
+}
 
-.badge-lowres{
-  position:absolute; right:6px; top:6px; font-size:10px;
-  background:#ffb703; color:#111; padding:2px 6px; border-radius:12px;
+.meta-line {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden
+}
+
+.badge-lowres {
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    font-size: 10px;
+    background: #ffb703;
+    color: #111;
+    padding: 2px 6px;
+    border-radius: 12px;
 }
 
 /* Boş, skeleton, toast */
-.empty{text-align:center; color:var(--muted); padding:28px}
-.skeleton{
-  background:linear-gradient(90deg,#1a2146,#222a58,#1a2146);
-  background-size:200% 100%; animation:s 1.6s linear infinite;
-  height:120px; border-radius:12px
+.empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 28px
 }
-@keyframes s{0%{background-position:0 0}100%{background-position:200% 0}}
-.toast{
-  position:fixed; right:16px; bottom:16px; background:#1a2146; color:#e9eefb;
-  padding:10px 14px; border-radius:12px; border:1px solid #28306a; box-shadow:0 10px 30px rgba(0,0,0,.4);
-  display:none
+
+.skeleton {
+    background: linear-gradient(90deg, #1a2146, #222a58, #1a2146);
+    background-size: 200% 100%;
+    animation: s 1.6s linear infinite;
+    height: 120px;
+    border-radius: 12px
+}
+
+@keyframes s {
+    0% {
+        background-position: 0 0
+    }
+
+    100% {
+        background-position: 200% 0
+    }
+}
+
+.toast {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    background: #1a2146;
+    color: #e9eefb;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid #28306a;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .4);
+    display: none
 }
 
 /* Loading mask */
-#loading{
-  position:fixed; inset:0; background:rgba(3,7,18,.55);
-  display:none; align-items:center; justify-content:center; z-index:9999;
+#loading {
+    position: fixed;
+    inset: 0;
+    background: rgba(3, 7, 18, .55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
 }
-#loading .spinner{
-  width:28px; height:28px; border-radius:50%;
-  border:3px solid #1f2b56; border-top-color:#fff; animation:spin .8s linear infinite;
+
+#loading .spinner {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 3px solid #1f2b56;
+    border-top-color: #fff;
+    animation: spin .8s linear infinite;
 }
-@keyframes spin{to{transform:rotate(360deg)}}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg)
+    }
+}
 
 /* Responsive kırılımlar */
-@media (max-width:900px){ #binderPanel .grid9{grid-template-columns:repeat(2,1fr)} }
-@media (max-width:560px){ #binderPanel .grid9{grid-template-columns:1fr} }
+@media (max-width:900px) {
+    #binderPanel .grid9 {
+        grid-template-columns: repeat(2, 1fr)
+    }
+}
+
+@media (max-width:560px) {
+    #binderPanel .grid9 {
+        grid-template-columns: 1fr
+    }
+}
+
+/* LISTE GRID: hücre taban genişliği biraz daha büyük olsun */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    /* 240 -> 280 */
+    gap: 12px;
+}
+
+/* Kart kutusu taşma yapmasın */
+.grid .card {
+    position: relative;
+    overflow: hidden;
+    /* taşan kırpılsın */
+    border-radius: 14px;
+}
+
+/* Satır hizası: üstten hizala */
+.grid .row {
+    align-items: flex-start;
+}
+
+/* Sol görsel: sabit oran + genişlik, taşma yok */
+.grid img.thumb {
+    width: 110px;
+    /* 80/140 yerine orta yol */
+    aspect-ratio: 63 / 88;
+    /* Pokemon kart oranı */
+    height: auto;
+    /* aspect-ratio ile otomatik */
+    object-fit: cover;
+    border-radius: 8px;
+    background: #0a0f27;
+    flex: 0 0 auto;
+}
+
+/* Sağdaki metin kolonu kırpılabilir olsun */
+.grid .row>div {
+    min-width: 0;
+}
+
+/* Metinler tek satır + ellipsis; link dahil */
+.grid .title,
+.grid .muted,
+.grid .price,
+.grid .row a.link {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* Küçük ekranlarda kartı biraz daralt */
+@media (max-width: 720px) {
+    .grid {
+        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    }
+
+    .grid img.thumb {
+        width: 96px;
+    }
+}
