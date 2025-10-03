@@ -96,13 +96,63 @@ async function refreshBinder() {
 }
 
 // -------- Import Modal logic --------
-function openModal() { $('#importModal').style.display='block'; $('#importModal').setAttribute('aria-hidden','false'); }
-function closeModal() { $('#importModal').style.display='none';  $('#importModal').setAttribute('aria-hidden','true'); $('#importGrid').innerHTML=''; $('#importCount').textContent='0'; const selAll=$('#selectAll'); if (selAll) selAll.checked=false; }
+function openModal() {
+  const modal = $('#importModal');
+  if (!modal) return;
+  modal.classList.add('is-open');
+  document.body.classList.add('modal-open');
+  modal.setAttribute('aria-hidden', 'false');
+  window.requestAnimationFrame(() => {
+    const panel = modal.querySelector('.modal__panel');
+    panel?.focus?.();
+  });
+}
+
+function closeModal() {
+  const modal = $('#importModal');
+  if (!modal) return;
+  modal.classList.remove('is-open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('modal-open');
+  const reset = () => {
+    const grid = $('#importGrid');
+    const count = $('#importCount');
+    if (grid) grid.innerHTML = '';
+    if (count) count.textContent = '0';
+    const selAll = $('#selectAll');
+    if (selAll) {
+      selAll.checked = false;
+      selAll.indeterminate = false;
+    }
+  };
+  window.setTimeout(reset, 220);
+}
 
 function renderImportGrid(cards) {
   const grid = $('#importGrid');
   const count = $('#importCount');
   grid.innerHTML = '';
+
+  const syncSelectionHighlight = () => {
+    $$('#importGrid .card').forEach(card => {
+      const checkbox = card.querySelector('.sel');
+      if (checkbox) card.classList.toggle('is-selected', checkbox.checked);
+    });
+  };
+
+  grid.onchange = (ev) => {
+    const target = ev.target;
+    if (!target || typeof target.matches !== 'function' || !target.matches('.sel')) return;
+    const selectAllInput = $('#selectAll');
+    if (selectAllInput) {
+      const checkboxes = $$('#importGrid .sel');
+      const allChecked = checkboxes.every(cb => cb.checked);
+      const someChecked = checkboxes.some(cb => cb.checked);
+      selectAllInput.checked = allChecked;
+      selectAllInput.indeterminate = !allChecked && someChecked;
+    }
+    syncSelectionHighlight();
+  };
 
   if (!cards.length) {
     grid.innerHTML = '<div class="empty">Gösterilecek kart yok.</div>';
@@ -116,8 +166,8 @@ function renderImportGrid(cards) {
     const el = document.createElement('div');
     el.className = 'card';
     el.innerHTML = `
-      <div class="row" style="gap:10px;align-items:flex-start">
-        <input type="checkbox" class="sel" data-key="${key}" style="margin-right:8px;margin-top:6px">
+      <div class="row">
+        <input type="checkbox" class="sel" data-key="${key}">
         <img class="thumb" src="${imgSrc(c.image_url)}" data-raw="${c.image_url||''}" onerror="onImgError(event)">
         <div>
           <div class="title">${c.name || '—'}</div>
@@ -133,9 +183,18 @@ function renderImportGrid(cards) {
   const selectAll = $('#selectAll');
   if (selectAll) {
     selectAll.checked = true;
-    $$('#importGrid .sel').forEach(cb => cb.checked = true);
-    selectAll.onchange = () => $$('#importGrid .sel').forEach(cb => cb.checked = selectAll.checked);
+    selectAll.indeterminate = false;
+    $$('#importGrid .sel').forEach(cb => (cb.checked = true));
+    selectAll.onchange = () => {
+      $$('#importGrid .sel').forEach(cb => {
+        cb.checked = selectAll.checked;
+      });
+      selectAll.indeterminate = false;
+      syncSelectionHighlight();
+    };
   }
+
+  syncSelectionHighlight();
 }
 
 // -------- Boot --------
@@ -215,6 +274,14 @@ async function boot() {
     // Modal: kapat
     $('#closeModalBtn').addEventListener('click', closeModal);
     $('#modalBackdrop').addEventListener('click', closeModal);
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Escape') return;
+      const modalEl = $('#importModal');
+      if (modalEl?.classList?.contains('is-open')) {
+        ev.preventDefault();
+        closeModal();
+      }
+    });
 
     // Modal: seçileni binder’a ekle
     $('#addToBinderBtn').addEventListener('click', async () => {

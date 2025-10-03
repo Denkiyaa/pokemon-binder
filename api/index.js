@@ -27,15 +27,21 @@ const IMG_MASTER_DIR = path.join(DB_DIR, 'imgcache_master'); // yüksek çözün
 
 await fs.mkdir(DB_DIR, { recursive: true }).catch(() => {});
 await fs.mkdir(IMG_DIR, { recursive: true }).catch(() => {});
+
 await ensureDir(IMG_MASTER_DIR); // util fonksiyonu
 
-// JSON dosyaları (inbox/binder)
-const pInbox  = (pid)    => path.join(DB_DIR, `inbox-${pid}.json`);
-const pBinder = (p, b)   => path.join(DB_DIR, `binder-${p}-${b}.json`);
+const legacyInboxPath = (pid) => path.join(DB_DIR, `inbox-${pid}.json`);
+const legacyBinderPath = (pid, bid) => path.join(DB_DIR, `binder-${pid}-${bid}.json`);
 
-const readJSON  = async (p, fb) => { try { return JSON.parse(await fs.readFile(p, 'utf8')); } catch { return fb; } };
-const writeJSON = (p, v) => fs.writeFile(p, JSON.stringify(v, null, 2), 'utf8');
-
+async function readLegacyArray(fp) {
+  try {
+    const raw = await fs.readFile(fp, 'utf8');
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
 const cardKey = (c) => (c?.pc_item_id || c?.pc_url || '') + '|' + (c?.price_value ?? '');
 const dedupCards = (arr = []) => {
   const seen = new Set(); const out = [];
@@ -106,6 +112,35 @@ await pool.query(`
     KEY idx_master (master_id),
     CONSTRAINT fk_images_master FOREIGN KEY (master_id)
       REFERENCES cards_master(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+`);
+
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS profile_inbox_cards (
+    profile_id VARCHAR(64) NOT NULL,
+    card_key VARCHAR(512) NOT NULL,
+    payload LONGTEXT NOT NULL,
+    sort_order INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (profile_id, card_key),
+    KEY idx_profile_inbox_sort (profile_id, sort_order),
+    CONSTRAINT fk_inbox_profile FOREIGN KEY (profile_id)
+      REFERENCES profiles(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+`);
+
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS profile_binder_cards (
+    profile_id VARCHAR(64) NOT NULL,
+    binder_id VARCHAR(64) NOT NULL,
+    card_key VARCHAR(512) NOT NULL,
+    payload LONGTEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (profile_id, binder_id, card_key),
+    KEY idx_profile_binder (profile_id, binder_id),
+    CONSTRAINT fk_binder_profile FOREIGN KEY (profile_id)
+      REFERENCES profiles(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `);
 
@@ -202,6 +237,163 @@ async function ensureHiResImage(masterId, baseUrl) {
     );
   } catch {}
   return null;
+}
+
+
+function parsePayload(raw) {
+  if (raw == null) return null;
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  return raw;
+}
+
+async function ensureProfileRow(profileId) {
+  if (!profileId) return;
+  await pool.query(`INSERT IGNORE INTO profiles (id, name) VALUES (?, ?)`, [profileId, profileId]);
+}
+
+async function listInboxCards(profileId) {
+  const [rows] = await pool.query(
+    `SELECT payload FROM profile_inbox_cards WHERE profile_id=? ORDER BY sort_order ASC, created_at ASC`,
+    [profileId]
+  );
+  const cards = rows.map(row => parsePayload(row.payload)).filter(Boolean);
+  if (cards.length) return cards;
+
+  const migrated = await migrateLegacyInbox(profileId);
+  if (migrated.length) return migrated;
+  return [];
+}
+
+async function replaceInboxCards(profileId, cards) {
+  await ensureProfileRow(profileId);
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query(`DELETE FROM profile_inbox_cards WHERE profile_id=?`, [profileId]);
+    if (cards.length) {
+      const placeholders = cards.map(() => '(?,?,?,?)').join(', ');
+      const values = [];
+      cards.forEach((card, index) => {
+        values.push(profileId, cardKey(card), JSON.stringify(card), index);
+      });
+      await conn.query(
+        `INSERT INTO profile_inbox_cards (profile_id, card_key, payload, sort_order) VALUES ${placeholders}`,
+        values
+      );
+    }
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+async function migrateLegacyInbox(profileId) {
+  const legacy = await readLegacyArray(legacyInboxPath(profileId));
+  if (!legacy.length) return [];
+  const clean = dedupCards(legacy);
+  if (!clean.length) return [];
+  await replaceInboxCards(profileId, clean);
+  await fs.unlink(legacyInboxPath(profileId)).catch(() => {});
+  return clean;
+}
+
+async function listBinderCards(profileId, binderId) {
+  const [rows] = await pool.query(
+    `SELECT payload FROM profile_binder_cards WHERE profile_id=? AND binder_id=? ORDER BY created_at ASC`,
+    [profileId, binderId]
+  );
+  const cards = rows.map(row => parsePayload(row.payload)).filter(Boolean);
+  if (cards.length) return cards;
+
+  const migrated = await migrateLegacyBinder(profileId, binderId);
+  if (migrated.length) return migrated;
+  return [];
+}
+
+async function migrateLegacyBinder(profileId, binderId) {
+  const legacy = await readLegacyArray(legacyBinderPath(profileId, binderId));
+  if (!legacy.length) return [];
+  const clean = dedupCards(legacy);
+  if (!clean.length) return [];
+  await ensureProfileRow(profileId);
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const placeholders = clean.map(() => '(?,?,?,?)').join(', ');
+    const values = [];
+    for (const card of clean) {
+      values.push(profileId, binderId, cardKey(card), JSON.stringify(card));
+    }
+    if (values.length) {
+      await conn.query(
+        `INSERT INTO profile_binder_cards (profile_id, binder_id, card_key, payload) VALUES ${placeholders} ON DUPLICATE KEY UPDATE payload=VALUES(payload), updated_at=CURRENT_TIMESTAMP`,
+        values
+      );
+    }
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+  await fs.unlink(legacyBinderPath(profileId, binderId)).catch(() => {});
+  return clean;
+}
+
+async function addCardsToBinder(profileId, binderId, cardKeys) {
+  await ensureProfileRow(profileId);
+  const uniqueKeys = Array.from(new Set(cardKeys.filter(Boolean)));
+  if (!uniqueKeys.length) {
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM profile_binder_cards WHERE profile_id=? AND binder_id=?`,
+      [profileId, binderId]
+    );
+    return { added: 0, total };
+  }
+
+  const conn = await pool.getConnection();
+  let rows = [];
+  try {
+    await conn.beginTransaction();
+    const placeholders = uniqueKeys.map(() => '?').join(',');
+    const params = [profileId, ...uniqueKeys];
+    [rows] = await conn.query(
+      `SELECT card_key, payload FROM profile_inbox_cards WHERE profile_id=? AND card_key IN (${placeholders})`,
+      params
+    );
+    if (rows.length) {
+      const insertPlaceholders = rows.map(() => '(?,?,?,?)').join(', ');
+      const insertValues = [];
+      for (const row of rows) {
+        insertValues.push(profileId, binderId, row.card_key, row.payload);
+      }
+      await conn.query(
+        `INSERT INTO profile_binder_cards (profile_id, binder_id, card_key, payload) VALUES ${insertPlaceholders} ON DUPLICATE KEY UPDATE payload=VALUES(payload), updated_at=CURRENT_TIMESTAMP`,
+        insertValues
+      );
+    }
+    const [[{ total }]] = await conn.query(
+      `SELECT COUNT(*) AS total FROM profile_binder_cards WHERE profile_id=? AND binder_id=?`,
+      [profileId, binderId]
+    );
+    await conn.commit();
+    return { added: rows.length, total };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
 
 // ------------------------------------------------------------------
@@ -302,23 +494,34 @@ api.get('/img-local/:id', async (req, res) => {
 // inbox / binder (JSON)
 api.get('/inbox', async (req, res) => {
   const pid = (req.query.profile || 'default').toString();
-  res.json(await readJSON(pInbox(pid), []));
+  try {
+    res.json(await listInboxCards(pid));
+  } catch (e) {
+    console.error('[inbox][get]', e);
+    res.status(500).json({ error: 'inbox fetch failed' });
+  }
 });
 api.get('/binder', async (req, res) => {
   const pid = (req.query.profile || 'default').toString();
   const bid = (req.query.binder || 'main').toString();
-  res.json(await readJSON(pBinder(pid, bid), []));
+  try {
+    res.json(await listBinderCards(pid, bid));
+  } catch (e) {
+    console.error('[binder][get]', e);
+    res.status(500).json({ error: 'binder fetch failed' });
+  }
 });
 api.post('/binder/add', async (req, res) => {
   const pid  = (req.body?.profile || 'default').toString();
   const bid  = (req.body?.binder  || 'main').toString();
   const keys = Array.isArray(req.body?.cardKeys) ? req.body.cardKeys : [];
-  const inbox   = await readJSON(pInbox(pid), []);
-  const toAdd   = inbox.filter(c => keys.includes(c.pc_item_id || c.pc_url));
-  const current = await readJSON(pBinder(pid, bid), []);
-  const merged  = dedupCards([...current, ...toAdd]);
-  await writeJSON(pBinder(pid, bid), merged);
-  res.json({ added: toAdd.length, total: merged.length });
+  try {
+    const result = await addCardsToBinder(pid, bid, keys);
+    res.json(result);
+  } catch (e) {
+    console.error('[binder][add]', e);
+    res.status(500).json({ error: 'binder add failed' });
+  }
 });
 
 // import + master’a yaz + görseli indir
@@ -341,7 +544,7 @@ api.post('/import', async (req, res) => {
       }
     }
 
-    await writeJSON(pInbox(pid), clean);
+    await replaceInboxCards(pid, clean);
     console.log('[IMPORT] parsed =', clean.length);
     res.json({ imported: clean.length });
   } catch (e) {

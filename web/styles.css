@@ -24,6 +24,10 @@ body {
     font-family: ui-sans-serif, system-ui, Arial
 }
 
+body.modal-open {
+    overflow: hidden;
+}
+
 /* Header */
 header {
     position: sticky;
@@ -404,79 +408,156 @@ a.link {
 .modal {
     position: fixed;
     inset: 0;
-    display: none
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(16px, 4vw, 48px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .25s ease, visibility 0s linear .25s;
+}
+
+.modal.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
 }
 
 .modal__backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(6, 9, 24, .7);
-    backdrop-filter: blur(2px)
+    background: rgba(6, 9, 24, .72);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    transition: opacity .25s ease;
+}
+
+.modal.is-open .modal__backdrop {
+    opacity: 1;
 }
 
 .modal__panel {
     position: relative;
     z-index: 1;
-    margin: 40px auto;
-    max-width: 1100px;
-    background: #121a35;
-    border: 1px solid #1a2146;
-    border-radius: 16px;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, .5);
+    width: min(100%, 1020px);
+    max-height: min(88vh, 820px);
+    background: linear-gradient(160deg, #141e40, #0f1430 55%);
+    border: 1px solid #1f2b56;
+    border-radius: 20px;
+    box-shadow: 0 32px 90px rgba(0, 0, 0, .55);
     display: flex;
     flex-direction: column;
-    max-height: 80vh
+    overflow: hidden;
+    transform: translateY(24px) scale(.97);
+    transition: transform .25s ease;
+}
+
+.modal.is-open .modal__panel {
+    transform: translateY(0) scale(1);
 }
 
 .modal__head,
 .modal__foot {
-    padding: 12px 16px;
-    border-bottom: 1px solid #1a2146;
+    padding: 16px 24px;
+    border-bottom: 1px solid rgba(106, 162, 255, .18);
     display: flex;
     align-items: center;
-    gap: 12px
+    gap: 12px;
+    background: rgba(8, 12, 28, .6);
+    backdrop-filter: blur(6px);
 }
 
 .modal__foot {
-    border-top: 1px solid #1a2146;
-    border-bottom: 0
+    border-top: 1px solid rgba(106, 162, 255, .18);
+    border-bottom: 0;
 }
 
 .modal__head .title {
-    font-weight: 900
+    font-size: 18px;
+    font-weight: 900;
 }
 
 .modal__head .actions {
     margin-left: auto;
     display: flex;
     gap: 12px;
-    align-items: center
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .modal__panel .grid--import {
-    padding: 14px;
-    overflow: auto
+    flex: 1;
+    padding: 20px 24px 26px;
+    overflow: auto;
+    background: linear-gradient(180deg, rgba(10, 14, 32, .85), rgba(10, 14, 32, .4));
 }
 
 .spacer {
-    flex: 1
+    flex: 1;
 }
 
-/* import grid kart stili */
 .grid--import .card {
-    border: 1px solid #1a2146;
+    border: 1px solid rgba(106, 162, 255, .08);
     border-radius: 14px;
-    padding: 10px;
-    background: #121a35
+    padding: 12px;
+    background: rgba(14, 21, 43, .85);
+    box-shadow: 0 12px 30px rgba(2, 6, 22, .45);
+    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+.grid--import .card:hover {
+    border-color: rgba(122, 239, 198, .5);
+    box-shadow: 0 18px 40px rgba(4, 10, 28, .6);
+    transform: translateY(-3px);
+}
+
+.grid--import .card.is-selected {
+    border-color: rgba(122, 239, 198, .8);
+    box-shadow: 0 22px 48px rgba(122, 239, 198, .25);
+    background: rgba(18, 32, 58, .95);
+}
+
+.grid--import input.sel {
+    width: 20px;
+    height: 20px;
+    margin-right: 6px;
+    margin-top: 6px;
+    accent-color: var(--accent2);
+    cursor: pointer;
+    flex-shrink: 0;
 }
 
 .grid--import .row {
-    align-items: flex-start
+    align-items: flex-start;
+    gap: 14px;
 }
 
 .grid--import img.thumb {
     width: 120px;
     height: auto;
     border-radius: 12px;
-    background: #0e152b
+    background: #0e152b;
+    box-shadow: 0 8px 16px rgba(2, 6, 22, .5);
+}
+
+@media (max-width: 720px) {
+    .modal {
+        padding: 12px;
+    }
+
+    .modal__panel {
+        border-radius: 16px;
+    }
+
+    .modal__head,
+    .modal__foot {
+        padding: 14px 16px;
+    }
+
+    .modal__panel .grid--import {
+        padding: 16px;
+    }
 }
