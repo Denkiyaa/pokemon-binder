@@ -1,4 +1,4 @@
-:root {
+﻿:root {
     --bg: #0b1020;
     --panel: #121a35;
     --panel2: #0f1430;
@@ -164,7 +164,7 @@ a.link {
     text-decoration: none
 }
 
-/* Liste küçük görsel — Sadece grid içine özelle */
+/* Liste kÃ¼Ã§Ã¼k gÃ¶rsel â€” Sadece grid iÃ§ine Ã¶zelle */
 .grid img.thumb {
     width: 80px;
     height: 112px;
@@ -174,7 +174,7 @@ a.link {
     flex: 0 0 auto;
 }
 
-/* Binder 3x3 – responsive, oran sabit */
+/* Binder 3x3 â€“ responsive, oran sabit */
 .flip-wrap {
     display: flex;
     justify-content: center;
@@ -200,18 +200,130 @@ a.link {
     display: block;
 }
 
-/* Kart oranını sabitleyen çerçeve */
+#binderPanel .binder-tools {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+#binderPanel .binder-tools input[type=search] {
+    flex: 1;
+    min-width: 220px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid #223255;
+    background: var(--panel2);
+    color: var(--text);
+    outline: none;
+    transition: border .2s ease, box-shadow .2s ease;
+}
+
+#binderPanel .binder-tools input[type=search]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(106, 162, 255, .18);
+}
+
+#binderPanel .binder-tools .spacer {
+    flex: 1;
+    min-width: 16px;
+}
+
+.binder-tools__actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.btn-compact {
+    padding: 10px 14px;
+    border-radius: 10px;
+}
+
+.btn-ghost {
+    background: rgba(122, 239, 198, .08);
+    border: 1px solid rgba(122, 239, 198, .35);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 6px 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s ease, border-color .2s ease, color .2s ease;
+}
+
+.btn-ghost:hover {
+    background: rgba(122, 239, 198, .18);
+    border-color: rgba(122, 239, 198, .6);
+}
+
+.btn-ghost.danger {
+    background: rgba(255, 99, 132, .08);
+    border-color: rgba(255, 99, 132, .45);
+    color: #ff9f9f;
+}
+
+.btn-ghost.danger:hover {
+    background: rgba(255, 99, 132, .18);
+    border-color: rgba(255, 99, 132, .65);
+}
+
+.btn-ghost[disabled] {
+    opacity: .5;
+    cursor: default;
+    pointer-events: none;
+}
+
+.edit-controls {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.qty-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-ghost.qty-display {
+    min-width: 36px;
+    justify-content: center;
+    font-weight: 700;
+}
+
+.count-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(122, 239, 198, .92);
+    color: #06112b;
+    font-weight: 800;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, .4);
+}
+
+#binderPanel .slot.slot--empty {
+    border: 1px dashed rgba(42, 53, 104, .6);
+    background: rgba(15, 23, 54, .35);
+}
+
+/* Kart oranÄ±nÄ± sabitleyen Ã§erÃ§eve */
 .imgwrap {
     position: relative;
     width: 100%;
-    /* Pokemon kartı ~63x88mm → 63/88 ≈ 0.716 → % ile sabitleme */
+    /* Pokemon kartÄ± ~63x88mm â†’ 63/88 â‰ˆ 0.716 â†’ % ile sabitleme */
     padding-top: 140%;
     overflow: hidden;
     border-radius: 10px;
     background: #0a0f27;
 }
 
-/* Binder içindeki img (kart) */
+/* Binder iÃ§indeki img (kart) */
 .imgwrap img.card {
     position: absolute;
     inset: 0;
@@ -244,7 +356,7 @@ a.link {
     border-radius: 12px;
 }
 
-/* Boş, skeleton, toast */
+/* BoÅŸ, skeleton, toast */
 .empty {
     text-align: center;
     color: var(--muted);
@@ -308,7 +420,7 @@ a.link {
     }
 }
 
-/* Responsive kırılımlar */
+/* Responsive kÄ±rÄ±lÄ±mlar */
 @media (max-width:900px) {
     #binderPanel .grid9 {
         grid-template-columns: repeat(2, 1fr)
@@ -321,7 +433,7 @@ a.link {
     }
 }
 
-/* LISTE GRID: hücre taban genişliği biraz daha büyük olsun */
+/* LISTE GRID: hÃ¼cre taban geniÅŸliÄŸi biraz daha bÃ¼yÃ¼k olsun */
 .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -329,25 +441,25 @@ a.link {
     gap: 12px;
 }
 
-/* Kart kutusu taşma yapmasın */
+/* Kart kutusu taÅŸma yapmasÄ±n */
 .grid .card {
     position: relative;
     overflow: hidden;
-    /* taşan kırpılsın */
+    /* taÅŸan kÄ±rpÄ±lsÄ±n */
     border-radius: 14px;
 }
 
-/* Satır hizası: üstten hizala */
+/* SatÄ±r hizasÄ±: Ã¼stten hizala */
 .grid .row {
     align-items: flex-start;
 }
 
-/* Sol görsel: sabit oran + genişlik, taşma yok */
+/* Sol gÃ¶rsel: sabit oran + geniÅŸlik, taÅŸma yok */
 .grid img.thumb {
     width: 110px;
     /* 80/140 yerine orta yol */
     aspect-ratio: 63 / 88;
-    /* Pokemon kart oranı */
+    /* Pokemon kart oranÄ± */
     height: auto;
     /* aspect-ratio ile otomatik */
     object-fit: cover;
@@ -356,12 +468,12 @@ a.link {
     flex: 0 0 auto;
 }
 
-/* Sağdaki metin kolonu kırpılabilir olsun */
+/* SaÄŸdaki metin kolonu kÄ±rpÄ±labilir olsun */
 .grid .row>div {
     min-width: 0;
 }
 
-/* Metinler tek satır + ellipsis; link dahil */
+/* Metinler tek satÄ±r + ellipsis; link dahil */
 .grid .title,
 .grid .muted,
 .grid .price,
@@ -373,7 +485,7 @@ a.link {
     max-width: 100%;
 }
 
-/* Küçük ekranlarda kartı biraz daralt */
+/* KÃ¼Ã§Ã¼k ekranlarda kartÄ± biraz daralt */
 @media (max-width: 720px) {
     .grid {
         grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
@@ -384,7 +496,7 @@ a.link {
     }
 }
 
-/* ufak yardımcılar */
+/* ufak yardÄ±mcÄ±lar */
 .sel {
     padding: 10px;
     border-radius: 10px;
@@ -398,7 +510,7 @@ a.link {
     color: #06112b
 }
 
-/* binder kapsayıcı genişlik */
+/* binder kapsayÄ±cÄ± geniÅŸlik */
 .binder-container {
     width: min(100%, 980px);
     margin-inline: auto
@@ -493,10 +605,9 @@ a.link {
     padding: 20px 24px 26px;
     overflow: auto;
     background: linear-gradient(180deg, rgba(10, 14, 32, .85), rgba(10, 14, 32, .4));
-}
-
-.spacer {
-    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 16px;
 }
 
 .grid--import .card {
@@ -521,23 +632,15 @@ a.link {
 }
 
 .grid--import input.sel {
-    width: 20px;
-    height: 20px;
-    margin-right: 6px;
-    margin-top: 6px;
-    accent-color: var(--accent2);
-    cursor: pointer;
-    flex-shrink: 0;
+    width: 20px;\n    height: 20px;\n    margin-right: 6px;
+    accent-color: var(--accent2);\n    cursor: pointer;\n    flex-shrink: 0;\n    align-self: flex-start;
 }
 
-.grid--import .row {
-    align-items: flex-start;
-    gap: 14px;
-}
 
 .grid--import img.thumb {
     width: 120px;
-    height: auto;
+    height: 160px;
+    object-fit: cover;
     border-radius: 12px;
     background: #0e152b;
     box-shadow: 0 8px 16px rgba(2, 6, 22, .5);
@@ -560,4 +663,54 @@ a.link {
     .modal__panel .grid--import {
         padding: 16px;
     }
+}
+
+.grid--import .card .row {
+    display: grid;
+    grid-template-columns: auto 120px 1fr;
+    gap: 14px;
+    align-items: center;
+}
+
+.grid--import .card .row .info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.grid--import .card .title {
+    font-weight: 800;
+    font-size: 15px;
+}
+
+.grid--import .card .muted {
+    font-size: 13px;
+}
+
+.grid--import .card .price {
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+@media (max-width: 720px) {
+    .modal__panel .grid--import {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .grid--import .card .row {
+        grid-template-columns: auto 96px 1fr;
+        gap: 12px;
+    }
+}
+
+
+
+
+.grid--import .card .title,
+.grid--import .card .muted,
+.grid--import .card .price {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }

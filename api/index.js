@@ -133,12 +133,17 @@ await pool.query(`
     binder_id VARCHAR(64) NOT NULL,
     card_key VARCHAR(512) NOT NULL,
     payload LONGTEXT NOT NULL,
+    sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+    count INT UNSIGNED NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (profile_id, binder_id, card_key),
     KEY idx_profile_binder (profile_id, binder_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `);
+await pool.query(`ALTER TABLE profile_binder_cards ADD COLUMN IF NOT EXISTS sort_order INT UNSIGNED NOT NULL DEFAULT 0`);
+await pool.query(`ALTER TABLE profile_binder_cards ADD COLUMN IF NOT EXISTS count INT UNSIGNED NOT NULL DEFAULT 1`);
+
 
 // DB helpers
 async function listProfiles() {
@@ -303,35 +308,70 @@ async function migrateLegacyInbox(profileId) {
 }
 
 async function listBinderCards(profileId, binderId) {
-  const [rows] = await pool.query(
-    `SELECT payload FROM profile_binder_cards WHERE profile_id=? AND binder_id=? ORDER BY created_at ASC`,
-    [profileId, binderId]
-  );
-  const cards = rows.map(row => parsePayload(row.payload)).filter(Boolean);
+  const fetchRows = async () => {
+    const [rows] = await pool.query(
+      `SELECT card_key, payload, sort_order, count FROM profile_binder_cards WHERE profile_id=? AND binder_id=? ORDER BY sort_order ASC, created_at ASC`,
+      [profileId, binderId]
+    );
+    return rows
+      .map(row => {
+        const data = parsePayload(row.payload);
+        if (!data) return null;
+        return {
+          ...data,
+          binderKey: row.card_key,
+          sortOrder: Number(row.sort_order ?? 0),
+          count: Number(row.count ?? 1)
+        };
+      })
+      .filter(Boolean);
+  };
+
+  let cards = await fetchRows();
   if (cards.length) return cards;
 
   const migrated = await migrateLegacyBinder(profileId, binderId);
-  if (migrated.length) return migrated;
+  if (migrated) {
+    cards = await fetchRows();
+    if (cards.length) return cards;
+  }
   return [];
 }
 
 async function migrateLegacyBinder(profileId, binderId) {
   const legacy = await readLegacyArray(legacyBinderPath(profileId, binderId));
-  if (!legacy.length) return [];
-  const clean = dedupCards(legacy);
-  if (!clean.length) return [];
+  if (!legacy.length) return false;
+
+  const seen = new Map();
+  const order = [];
+  for (const card of legacy) {
+    const key = cardKey(card);
+    if (!key) continue;
+    if (!seen.has(key)) {
+      seen.set(key, { card, count: 1 });
+      order.push(key);
+    } else {
+      seen.get(key).count += 1;
+    }
+  }
+  if (!order.length) return false;
+
   await ensureProfileRow(profileId);
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const placeholders = clean.map(() => '(?,?,?,?)').join(', ');
+    const placeholders = order.map(() => '(?,?,?,?,?,?)').join(', ');
     const values = [];
-    for (const card of clean) {
-      values.push(profileId, binderId, cardKey(card), JSON.stringify(card));
+    let sort = 0;
+    for (const key of order) {
+      const entry = seen.get(key);
+      values.push(profileId, binderId, key, JSON.stringify(entry.card), sort++, entry.count);
     }
     if (values.length) {
       await conn.query(
-        `INSERT INTO profile_binder_cards (profile_id, binder_id, card_key, payload) VALUES ${placeholders} ON DUPLICATE KEY UPDATE payload=VALUES(payload), updated_at=CURRENT_TIMESTAMP`,
+        `INSERT INTO profile_binder_cards (profile_id, binder_id, card_key, payload, sort_order, count)
+         VALUES ${placeholders}
+         ON DUPLICATE KEY UPDATE payload=VALUES(payload), sort_order=VALUES(sort_order), count=VALUES(count), updated_at=CURRENT_TIMESTAMP`,
         values
       );
     }
@@ -343,7 +383,7 @@ async function migrateLegacyBinder(profileId, binderId) {
     conn.release();
   }
   await fs.unlink(legacyBinderPath(profileId, binderId)).catch(() => {});
-  return clean;
+  return true;
 }
 
 async function addCardsToBinder(profileId, binderId, cardKeys) {
@@ -358,32 +398,57 @@ async function addCardsToBinder(profileId, binderId, cardKeys) {
   }
 
   const conn = await pool.getConnection();
-  let rows = [];
   try {
     await conn.beginTransaction();
+
     const placeholders = uniqueKeys.map(() => '?').join(',');
-    const params = [profileId, ...uniqueKeys];
-    [rows] = await conn.query(
+    const inboxParams = [profileId, ...uniqueKeys];
+    const [inboxRows] = await conn.query(
       `SELECT card_key, payload FROM profile_inbox_cards WHERE profile_id=? AND card_key IN (${placeholders})`,
-      params
+      inboxParams
     );
-    if (rows.length) {
-      const insertPlaceholders = rows.map(() => '(?,?,?,?)').join(', ');
-      const insertValues = [];
-      for (const row of rows) {
-        insertValues.push(profileId, binderId, row.card_key, row.payload);
-      }
+    const inboxMap = new Map(inboxRows.map(row => [row.card_key, row.payload]));
+
+    const binderParams = [profileId, binderId, ...uniqueKeys];
+    const [existingRows] = await conn.query(
+      `SELECT card_key FROM profile_binder_cards WHERE profile_id=? AND binder_id=? AND card_key IN (${placeholders})`,
+      binderParams
+    );
+    const existingSet = new Set(existingRows.map(row => row.card_key));
+
+    const [[{ maxOrder }]] = await conn.query(
+      `SELECT COALESCE(MAX(sort_order), -1) AS maxOrder FROM profile_binder_cards WHERE profile_id=? AND binder_id=?`,
+      [profileId, binderId]
+    );
+    let nextOrder = Number(maxOrder) + 1;
+
+    const insertTuples = [];
+    let created = 0;
+    for (const key of uniqueKeys) {
+      const payload = inboxMap.get(key);
+      if (!payload) continue;
+      if (!existingSet.has(key)) created += 1;
+      insertTuples.push(profileId, binderId, key, payload, nextOrder++, 1);
+    }
+
+    if (insertTuples.length) {
+      const tupleCount = Math.floor(insertTuples.length / 6);
+      const insertPlaceholders = Array.from({ length: tupleCount }, () => '(?,?,?,?,?,?)').join(', ');
       await conn.query(
-        `INSERT INTO profile_binder_cards (profile_id, binder_id, card_key, payload) VALUES ${insertPlaceholders} ON DUPLICATE KEY UPDATE payload=VALUES(payload), updated_at=CURRENT_TIMESTAMP`,
-        insertValues
+        `INSERT INTO profile_binder_cards (profile_id, binder_id, card_key, payload, sort_order, count)
+         VALUES ${insertPlaceholders}
+         ON DUPLICATE KEY UPDATE payload=VALUES(payload), count = count + VALUES(count), updated_at=CURRENT_TIMESTAMP`,
+        insertTuples
       );
     }
+
     const [[{ total }]] = await conn.query(
       `SELECT COUNT(*) AS total FROM profile_binder_cards WHERE profile_id=? AND binder_id=?`,
       [profileId, binderId]
     );
+
     await conn.commit();
-    return { added: rows.length, total };
+    return { added: created, total };
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -391,6 +456,105 @@ async function addCardsToBinder(profileId, binderId, cardKeys) {
     conn.release();
   }
 }
+async function updateBinderOrder(profileId, binderId, orderedKeys) {
+  if (!orderedKeys || !orderedKeys.length) return;
+  const caseParts = orderedKeys.map((_, idx) => `WHEN ? THEN ${idx}`);
+  const sql = `UPDATE profile_binder_cards
+     SET sort_order = CASE card_key ${caseParts.join(' ')} ELSE sort_order END
+   WHERE profile_id=? AND binder_id=?`;
+  await pool.query(sql, [...orderedKeys, profileId, binderId]);
+}
+
+async function binderReorder(profileId, binderId, proposedOrder) {
+  const clean = Array.from(new Set((proposedOrder || []).filter(Boolean)));
+  const [rows] = await pool.query(
+    `SELECT card_key FROM profile_binder_cards WHERE profile_id=? AND binder_id=? ORDER BY sort_order ASC, created_at ASC`,
+    [profileId, binderId]
+  );
+  const current = rows.map(row => row.card_key);
+  const finalOrder = [...clean];
+  for (const key of current) {
+    if (!finalOrder.includes(key)) finalOrder.push(key);
+  }
+  if (!finalOrder.length) return { total: 0 };
+  await updateBinderOrder(profileId, binderId, finalOrder);
+  return { total: finalOrder.length };
+}
+
+async function binderAutoSort(profileId, binderId) {
+  const [rows] = await pool.query(
+    `SELECT card_key, payload FROM profile_binder_cards WHERE profile_id=? AND binder_id=?`,
+    [profileId, binderId]
+  );
+  if (!rows.length) return { total: 0 };
+  const sortable = rows
+    .map(row => {
+      const data = parsePayload(row.payload);
+      if (!data) return null;
+      const setName = (data.set_name || '').toString();
+      const collectorNumber = (data.collector_number || '').toString();
+      const collectorNum = parseInt(collectorNumber.match(/\d+/)?.[0] || '0', 10);
+      const name = (data.name || '').toString();
+      return { key: row.card_key, setName, collectorNum, collectorNumber, name };
+    })
+    .filter(Boolean);
+  if (!sortable.length) return { total: 0 };
+  sortable.sort((a, b) => {
+    const setCmp = a.setName.localeCompare(b.setName, 'tr', { sensitivity: 'base' });
+    if (setCmp !== 0) return setCmp;
+    const numCmp = a.collectorNum - b.collectorNum;
+    if (numCmp !== 0) return numCmp;
+    return a.name.localeCompare(b.name, 'tr', { sensitivity: 'base' });
+  });
+  const orderedKeys = sortable.map(item => item.key);
+  await updateBinderOrder(profileId, binderId, orderedKeys);
+  return { total: orderedKeys.length };
+}
+
+async function binderRemoveCards(profileId, binderId, cardKeys) {
+  const keys = Array.from(new Set((cardKeys || []).filter(Boolean)));
+  if (!keys.length) {
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM profile_binder_cards WHERE profile_id=? AND binder_id=?`,
+      [profileId, binderId]
+    );
+    return { removed: 0, total };
+  }
+  const placeholders = keys.map(() => '?').join(',');
+  const params = [profileId, binderId, ...keys];
+  const [result] = await pool.query(
+    `DELETE FROM profile_binder_cards WHERE profile_id=? AND binder_id=? AND card_key IN (${placeholders})`,
+    params
+  );
+  await binderReorder(profileId, binderId, []);
+  const [[{ total }]] = await pool.query(
+    `SELECT COUNT(*) AS total FROM profile_binder_cards WHERE profile_id=? AND binder_id=?`,
+    [profileId, binderId]
+  );
+  return { removed: result.affectedRows || 0, total };
+}
+
+async function binderUpdateCount(profileId, binderId, cardKey, nextCount) {
+  if (!cardKey) return { updated: 0 };
+  if (nextCount <= 0) {
+    const [result] = await pool.query(
+      `DELETE FROM profile_binder_cards WHERE profile_id=? AND binder_id=? AND card_key=?`,
+      [profileId, binderId, cardKey]
+    );
+    if (result.affectedRows) await binderReorder(profileId, binderId, []);
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM profile_binder_cards WHERE profile_id=? AND binder_id=?`,
+      [profileId, binderId]
+    );
+    return { removed: Boolean(result.affectedRows), total };
+  }
+  const [result] = await pool.query(
+    `UPDATE profile_binder_cards SET count=? WHERE profile_id=? AND binder_id=? AND card_key=?`,
+    [nextCount, profileId, binderId, cardKey]
+  );
+  return { updated: result.affectedRows || 0, count: nextCount };
+}
+
 
 // ------------------------------------------------------------------
 // Express
@@ -517,6 +681,61 @@ api.post('/binder/add', async (req, res) => {
   } catch (e) {
     console.error('[binder][add]', e);
     res.status(500).json({ error: 'binder add failed' });
+
+api.post('/binder/remove', async (req, res) => {
+  const pid = (req.body?.profile || 'default').toString();
+  const bid = (req.body?.binder || 'main').toString();
+  const keys = Array.isArray(req.body?.cardKeys) ? req.body.cardKeys : [];
+  try {
+    const result = await binderRemoveCards(pid, bid, keys);
+    res.json(result);
+  } catch (e) {
+    console.error('[binder][remove]', e);
+    res.status(500).json({ error: 'binder remove failed' });
+  }
+});
+
+api.post('/binder/update-count', async (req, res) => {
+  const pid = (req.body?.profile || 'default').toString();
+  const bid = (req.body?.binder || 'main').toString();
+  const key = (req.body?.cardKey || '').toString();
+  const raw = Number(req.body?.count);
+  const normalized = Number.isFinite(raw) ? Math.max(0, Math.round(raw)) : 0;
+  try {
+    const result = await binderUpdateCount(pid, bid, key, normalized);
+    res.json(result);
+  } catch (e) {
+    console.error('[binder][update-count]', e);
+    res.status(500).json({ error: 'binder count update failed' });
+  }
+});
+
+api.post('/binder/reorder', async (req, res) => {
+  const pid = (req.body?.profile || 'default').toString();
+  const bid = (req.body?.binder || 'main').toString();
+  const order = Array.isArray(req.body?.order) ? req.body.order : [];
+  try {
+    const result = await binderReorder(pid, bid, order);
+    res.json(result);
+  } catch (e) {
+    console.error('[binder][reorder]', e);
+    res.status(500).json({ error: 'binder reorder failed' });
+  }
+});
+
+api.post('/binder/auto-sort', async (req, res) => {
+  const pid = (req.body?.profile || 'default').toString();
+  const bid = (req.body?.binder || 'main').toString();
+  try {
+    const result = await binderAutoSort(pid, bid);
+    res.json(result);
+  } catch (e) {
+    console.error('[binder][auto-sort]', e);
+    res.status(500).json({ error: 'binder auto sort failed' });
+  }
+});
+
+
   }
 });
 
