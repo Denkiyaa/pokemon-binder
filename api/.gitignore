@@ -1,4 +1,9 @@
-./env
+# Env
+.env
+*.env
 **/.env
+.env.*.local
+
+# Caches
 data/imgcache/
 **/data/imgcache/
