@@ -8,12 +8,12 @@ async function getJSON(url, opts) {
 }
 
 // ===== DOM helpers =====
-const $  = (sel) => document.querySelector(sel);
+const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 // image url helpers
 const preferBig = (u) => (u ? u.replace(/\/(60|180)\.(jpg|png)(\?.*)?$/i, '/300.$2$3') : '');
-const imgSrc    = (u) => (u ? `${API}/img?u=${encodeURIComponent(preferBig(u))}` : '');
+const imgSrc = (u) => (u ? `${API}/img?u=${encodeURIComponent(preferBig(u))}` : '');
 
 // toast
 const toast = (msg) => {
@@ -27,7 +27,7 @@ const toast = (msg) => {
 // tabs
 const setActiveTab = (name) => {
   $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
-  $('#gridPanel').style.display   = name === 'grid'   ? '' : 'none';
+  $('#gridPanel').style.display = name === 'grid' ? '' : 'none';
   $('#binderPanel').style.display = name === 'binder' ? '' : 'none';
 };
 
@@ -39,7 +39,7 @@ window.onImgError = function onImgError(ev) {
   try {
     const url = new URL(img.src, location.href);
     raw = url.searchParams.get('u') ? decodeURIComponent(url.searchParams.get('u')) : '';
-  } catch {}
+  } catch { }
   if (!raw) { img.style.display = 'none'; return; }
 
   const steps = [
@@ -68,6 +68,15 @@ const hideLoading = () => {
   if (el) el.style.display = 'none';
 };
 
+// Kart görsel kaynağı: önce kendi cache'i, yoksa PriceCharting proxy
+function cardImgSrc(c) {
+  if (c && c.master_id) {
+    return `${API}/img-local/${c.master_id}`;
+  }
+  return `${API}/img?u=${encodeURIComponent(preferBig(c.image_url || ''))}`;
+}
+
+
 // ===== Liste (Inbox) =====
 function renderGrid(cards) {
   const grid = $('#grid');
@@ -86,10 +95,7 @@ function renderGrid(cards) {
     el.innerHTML = `
       <div class="row" style="align-items:flex-start">
         <input type="checkbox" class="sel" data-key="${key}" style="margin-right:8px;margin-top:6px">
-        <img class="thumb"
-             src="${imgSrc(c.image_url)}"
-             data-raw="${c.image_url || ''}"
-             onerror="onImgError(event)">
+       <img class="thumb" src="${cardImgSrc(c)}" data-raw="${c.image_url || ''}" onerror="onImgError(event)">
         <div>
           <div class="title">${c.name || '—'}</div>
           <div class="muted">${c.set_name || ''} ${c.collector_number ? '• ' + c.collector_number : ''}</div>
@@ -114,11 +120,11 @@ const PER_PAGE = 9;
 let binderPage = 0;
 
 function renderBinderSimple(cards) {
-  const grid  = $('#binderGrid');
-  const info  = $('#pageInfo');
+  const grid = $('#binderGrid');
+  const info = $('#pageInfo');
   const empty = $('#binderEmpty');
-  const prev  = $('#prevBtn');
-  const next  = $('#nextBtn');
+  const prev = $('#prevBtn');
+  const next = $('#nextBtn');
   if (!grid || !info || !empty || !prev || !next) return;
 
   if (!cards.length) {
@@ -138,10 +144,7 @@ function renderBinderSimple(cards) {
 
   grid.innerHTML = slice.map((c) => `
     <div class="slot">
-      <img class="card"
-           src="${imgSrc(c.image_url)}"
-           data-raw="${c.image_url || ''}"
-           onerror="onImgError(event)">
+      <img class="card" src="${cardImgSrc(c)}"data-raw="${c.image_url || ''}"onerror="onImgError(event)">
       <div style="font-size:12px; overflow:hidden">
         <div style="font-weight:900; white-space:nowrap; text-overflow:ellipsis; overflow:hidden">${c.name || ''}</div>
         <div style="opacity:.8; white-space:nowrap; text-overflow:ellipsis; overflow:hidden">
@@ -169,19 +172,19 @@ function renderBinderSimple(cards) {
 // ===== Data adaptörleri =====
 async function loadProfiles() {
   const rows = await getJSON('/profiles');
-  const sel  = $('#profileSel');
+  const sel = $('#profileSel');
   const saved = localStorage.getItem('profile') || 'default';
   sel.innerHTML = rows.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
   sel.value = [...sel.options].some(o => o.value === saved) ? saved : 'default';
 }
 async function refreshInbox() {
-  const pid   = $('#profileSel').value || 'default';
+  const pid = $('#profileSel').value || 'default';
   const cards = await getJSON(`/inbox?profile=${encodeURIComponent(pid)}`);
   renderGrid(cards);
 }
 async function refreshBinder() {
-  const pid   = $('#profileSel').value || 'default';
-  const bid   = $('#binderSel').value || 'main';
+  const pid = $('#profileSel').value || 'default';
+  const bid = $('#binderSel').value || 'main';
   const cards = await getJSON(`/binder?profile=${encodeURIComponent(pid)}&binder=${encodeURIComponent(bid)}`);
   renderBinderSimple(cards);
 }
@@ -207,8 +210,8 @@ async function boot() {
 
     // import
     $('#importBtn').addEventListener('click', async () => {
-      const url     = $('#urlInput').value.trim();
-      const cookie  = $('#cookieInput')?.value.trim();
+      const url = $('#urlInput').value.trim();
+      const cookie = $('#cookieInput')?.value.trim();
       const profile = $('#profileSel').value || 'default';
       if (!url) return alert('Lütfen PriceCharting linkini yapıştır');
 
@@ -234,8 +237,8 @@ async function boot() {
     // seçileni binder’a ekle
     $('#addToBinderBtn').addEventListener('click', async () => {
       const profile = $('#profileSel').value || 'default';
-      const binder  = $('#binderSel').value || 'main';
-      const keys    = $$('#grid .sel:checked').map(cb => cb.dataset.key).filter(Boolean);
+      const binder = $('#binderSel').value || 'main';
+      const keys = $$('#grid .sel:checked').map(cb => cb.dataset.key).filter(Boolean);
       if (!keys.length) return alert('Hiç kart seçmedin.');
 
       showLoading('Binder’a ekleniyor…');

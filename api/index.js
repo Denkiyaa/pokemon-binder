@@ -10,10 +10,18 @@ import mysql from 'mysql2/promise';
 import { fetchCollection } from './scraper.js';
 import dotenv from 'dotenv';
 import 'dotenv/config';
+import { masterSlug } from './utils/slug.js';
+import { candidatesForHigher } from './utils/img-candidate.js';
+import { saveToLocal, ensureDir } from './utils/save-image.js';
+
+dotenv.config();
 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const IMG_MASTER_DIR = path.join(DB_DIR, 'imgcache_master');
+await ensureDir(IMG_MASTER_DIR);
 
 const app = express();
 app.use(cors());
@@ -39,6 +47,71 @@ await pool.query(`
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `);
 await pool.query(`INSERT IGNORE INTO profiles (id,name) VALUES ('default','default')`);
+
+
+function qualityTagFromUrl(u = '') {
+    if (/\/60\./i.test(u)) return '60';
+    if (/\/180\./i.test(u)) return '180';
+    if (/\/300\./i.test(u)) return '300';
+    if (/\/600\./i.test(u)) return '600';
+    if (/\/1000\./i.test(u)) return '1000';
+    return 'orig';
+}
+
+async function upsertMasterCard(card) {
+    const slug = masterSlug({ set_name: card.set_name, collector_number: card.collector_number, name: card.name });
+    const [rows] = await pool.query(`SELECT id FROM cards_master WHERE slug=?`, [slug]);
+    let id = rows?.[0]?.id;
+    if (!id) {
+        const [r2] = await pool.query(
+            `INSERT INTO cards_master (slug,name,set_name,collector_no) VALUES (?,?,?,?)`,
+            [slug, card.name || null, card.set_name || null, card.collector_number || null]
+        );
+        id = r2.insertId;
+    } else {
+        await pool.query(
+            `UPDATE cards_master SET name=?, set_name=?, collector_no=? WHERE id=?`,
+            [card.name || null, card.set_name || null, card.collector_number || null, id]
+        );
+    }
+
+    const source_key = card.pc_item_id || card.pc_url || '';
+    if (source_key) {
+        await pool.query(
+            `INSERT IGNORE INTO cards_sources (source,source_key,master_id) VALUES ('pricecharting',?,?,?)`
+                .replace('?,?', '?,?'),
+            ['pricecharting', source_key, id]
+        ).catch(() => { });
+    }
+    return id;
+}
+
+async function ensureHiResImage(masterId, baseUrl) {
+    const list = candidatesForHigher(baseUrl);
+    for (const u of list) {
+        try {
+            const { fp } = await saveToLocal(u, IMG_MASTER_DIR);
+            const tag = qualityTagFromUrl(u);
+            await pool.query(
+                `INSERT INTO images (master_id,quality_tag,source_url,local_path)
+         VALUES (?,?,?,?)
+         ON DUPLICATE KEY UPDATE source_url=VALUES(source_url), local_path=VALUES(local_path)`,
+                [masterId, tag, u, fp]
+            );
+            return { tag, local_path: fp };
+        } catch { }
+    }
+    // hi-res yoksa en azından base'i kaydet
+    try {
+        const { fp } = await saveToLocal(baseUrl, IMG_MASTER_DIR);
+        await pool.query(
+            `INSERT INTO images (master_id,quality_tag,source_url,local_path)
+       VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE local_path=VALUES(local_path)`,
+            [masterId, qualityTagFromUrl(baseUrl), baseUrl, fp]
+        );
+    } catch { }
+    return null;
+}
 
 // DB tabanlı profile helpers
 async function listProfiles() {
@@ -149,6 +222,29 @@ api.get('/img', async (req, res) => {
     res.status(502).end('img fetch failed');
 });
 
+// master'dan en iyi kaliteyi dön
+api.get('/img-local/:id', async (req, res) => {
+    const id = Number(req.params.id || 0);
+    if (!id) return res.status(400).end('id');
+
+    const [rows] = await pool.query(
+        `SELECT local_path FROM images
+     WHERE master_id=? ORDER BY FIELD(quality_tag,'1000','600','300','180','60','orig') LIMIT 1`,
+        [id]
+    );
+    const fp = rows?.[0]?.local_path;
+    if (!fp) return res.status(404).end('no image');
+
+    try {
+        const buf = await fs.readFile(fp);
+        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+        res.type('jpg').end(buf);
+    } catch {
+        res.status(500).end('fs');
+    }
+});
+
+
 // inbox / binder (JSON)
 api.get('/inbox', async (req, res) => {
     const pid = (req.query.profile || 'default').toString();
@@ -171,7 +267,6 @@ api.post('/binder/add', async (req, res) => {
     res.json({ added: toAdd.length, total: merged.length });
 });
 
-// import (Listeyi inbox.json’a yazar)
 api.post('/import', async (req, res) => {
     try {
         const url = (req.body?.url || '').toString();
@@ -182,7 +277,19 @@ api.post('/import', async (req, res) => {
         console.log('[IMPORT] url =', url);
         const items = await fetchCollection(url, { cookie });
         const clean = dedupCards(items);
+
+        // >>> yeni: master’a yaz + hi-res görseli indir, master_id ekle
+        for (const it of clean) {
+            const mid = await upsertMasterCard(it);
+            it.master_id = mid;
+            if (it.image_url) {
+                await ensureHiResImage(mid, it.image_url);
+            }
+        }
+
+        // Inbox JSON’u tamamen yenile (aynı mantık)
         await writeJSON(pInbox(pid), clean);
+
         console.log('[IMPORT] parsed =', clean.length);
         res.json({ imported: clean.length });
     } catch (e) {
@@ -190,6 +297,7 @@ api.post('/import', async (req, res) => {
         res.status(500).json({ error: e.message || 'import failed' });
     }
 });
+
 
 // API router'ı mount et
 app.use('/api', api);
