@@ -1,124 +1,48 @@
-// ===== API helper =====
+// -------- API helper --------
 const API = '/api';
-
 async function getJSON(url, opts) {
   const r = await fetch(API + url, opts);
   if (!r.ok) throw new Error(`HTTP ${r.status} ${API + url}`);
   return r.json();
 }
 
-// ===== DOM helpers =====
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+// -------- DOM helpers --------
+const $  = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
 
-// image url helpers
-const preferBig = (u) => (u ? u.replace(/\/(60|180)\.(jpg|png)(\?.*)?$/i, '/300.$2$3') : '');
+// -------- img helpers --------
+const preferBig = (u) => u ? u.replace(/\/(60|180)\.(jpg|png)(\?.*)?$/i, '/300.$2$3') : '';
 const imgSrc = (u) => (u ? `${API}/img?u=${encodeURIComponent(preferBig(u))}` : '');
 
-// toast
-const toast = (msg) => {
-  const t = $('#toast');
-  if (!t) return;
-  t.textContent = msg;
-  t.style.display = 'block';
-  setTimeout(() => (t.style.display = 'none'), 2500);
-};
-
-// tabs
-const setActiveTab = (name) => {
-  $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
-  $('#gridPanel').style.display = name === 'grid' ? '' : 'none';
-  $('#binderPanel').style.display = name === 'binder' ? '' : 'none';
-};
-
-// global img error fallback (300 -> 180 -> 60 -> hide)
-window.onImgError = function onImgError(ev) {
+function onImgError(ev) {
   const img = ev?.target || ev;
   if (!img) return;
   let raw = '';
   try {
-    const url = new URL(img.src, location.href);
-    raw = url.searchParams.get('u') ? decodeURIComponent(url.searchParams.get('u')) : '';
-  } catch { }
-  if (!raw) { img.style.display = 'none'; return; }
-
-  const steps = [
-    (u) => u.replace(/\/300\.(jpg|png)/i, '/180.$1'),
-    (u) => u.replace(/\/180\.(jpg|png)/i, '/60.$1'),
-    (u) => u.replace(/([?&])w=\d+/g, '$1').replace(/[?&]$/, ''),
-  ];
-
-  for (const fn of steps) {
-    const nx = fn(raw);
-    if (nx !== raw) { img.src = `${API}/img?u=${encodeURIComponent(nx)}`; return; }
-  }
-  img.style.display = 'none';
-};
-
-// loading mask opsiyonel (sayfaya #loading eklersen kullanılır)
-const showLoading = (msg = 'Yükleniyor…') => {
-  const el = document.getElementById('loading');
-  if (!el) return;
-  el.style.display = 'flex';
-  const m = el.querySelector('.msg');
-  if (m) m.textContent = msg;
-};
-const hideLoading = () => {
-  const el = document.getElementById('loading');
-  if (el) el.style.display = 'none';
-};
-
-// Kart görsel kaynağı: önce kendi cache'i, yoksa PriceCharting proxy
-function cardImgSrc(c) {
-  if (c && c.master_id) {
-    return `${API}/img-local/${c.master_id}`;
-  }
-  return `${API}/img?u=${encodeURIComponent(preferBig(c.image_url || ''))}`;
+    const u = new URL(img.src, location.href);
+    raw = u.searchParams.get('u') ? decodeURIComponent(u.searchParams.get('u')) : '';
+  } catch {}
+  raw ||= img.getAttribute('data-raw') || '';
+  if (!raw) { img.style.display='none'; return; }
+  // 300→180→60 düş
+  if (/\/300\.(jpg|png)/i.test(raw)) { img.src = `${API}/img?u=${encodeURIComponent(raw.replace(/\/300\.(jpg|png)/i, '/180.$1'))}`; return; }
+  if (/\/180\.(jpg|png)/i.test(raw)) { img.src = `${API}/img?u=${encodeURIComponent(raw.replace(/\/180\.(jpg|png)/i, '/60.$1'))}`;  return; }
+  // bitti
+  img.style.display='none';
 }
 
+// -------- Toast --------
+const toast = (msg) => {
+  const t = $('#toast'); if (!t) return;
+  t.textContent = msg; t.style.display='block';
+  setTimeout(()=>t.style.display='none', 2500);
+};
 
-// ===== Liste (Inbox) =====
-function renderGrid(cards) {
-  const grid = $('#grid');
-  $('#countTxt').textContent = cards.length;
-  grid.innerHTML = '';
-
-  if (!cards.length) {
-    grid.innerHTML = `<div class="empty">Gösterilecek kart yok.</div>`;
-    return;
-  }
-
-  for (const c of cards) {
-    const key = c.pc_item_id || c.pc_url;
-    const el = document.createElement('div');
-    el.className = 'card';
-    el.innerHTML = `
-      <div class="row" style="align-items:flex-start">
-        <input type="checkbox" class="sel" data-key="${key}" style="margin-right:8px;margin-top:6px">
-       <img class="thumb" src="${cardImgSrc(c)}" data-raw="${c.image_url || ''}" onerror="onImgError(event)">
-        <div>
-          <div class="title">${c.name || '—'}</div>
-          <div class="muted">${c.set_name || ''} ${c.collector_number ? '• ' + c.collector_number : ''}</div>
-          <div class="muted">${c.condition || ''}</div>
-          <div class="price">${c.price_value != null ? ('$' + Number(c.price_value).toFixed(2)) : '—'}</div>
-          <a class="link" href="${c.pc_url}" target="_blank" rel="noreferrer">PriceCharting</a>
-        </div>
-      </div>`;
-    grid.appendChild(el);
-  }
-
-  const selectAll = $('#selectAll');
-  if (selectAll) {
-    selectAll.checked = true;
-    $$('#grid .sel').forEach((cb) => (cb.checked = true));
-    selectAll.onchange = () => $$('#grid .sel').forEach((cb) => (cb.checked = selectAll.checked));
-  }
-}
-
-// ===== Binder =====
-const PER_PAGE = 9;
+// -------- State --------
 let binderPage = 0;
+const PER_PAGE = 9;
 
+// -------- Binder UI --------
 function renderBinderSimple(cards) {
   const grid = $('#binderGrid');
   const info = $('#pageInfo');
@@ -128,168 +52,204 @@ function renderBinderSimple(cards) {
   if (!grid || !info || !empty || !prev || !next) return;
 
   if (!cards.length) {
-    empty.style.display = '';
-    grid.innerHTML = '';
-    info.textContent = '';
-    prev.disabled = next.disabled = true;
+    empty.style.display='';
+    grid.innerHTML='';
+    info.textContent='';
+    prev.disabled=next.disabled=true;
     return;
   }
-
-  empty.style.display = 'none';
+  empty.style.display='none';
 
   const totalPages = Math.ceil(cards.length / PER_PAGE);
   binderPage = Math.max(0, Math.min(binderPage, totalPages - 1));
   const start = binderPage * PER_PAGE;
   const slice = cards.slice(start, start + PER_PAGE);
 
-  grid.innerHTML = slice.map((c) => `
-    <div class="slot">
-      <img class="card" src="${cardImgSrc(c)}"data-raw="${c.image_url || ''}"onerror="onImgError(event)">
-      <div style="font-size:12px; overflow:hidden">
-        <div style="font-weight:900; white-space:nowrap; text-overflow:ellipsis; overflow:hidden">${c.name || ''}</div>
-        <div style="opacity:.8; white-space:nowrap; text-overflow:ellipsis; overflow:hidden">
-          ${c.set_name || ''} ${c.collector_number ? ('• ' + c.collector_number) : ''}</div>
-        <div>${c.condition || ''}</div>
-        <div style="font-weight:900; margin-top:4px">
-          ${c.price_value != null ? ('$' + Number(c.price_value).toFixed(2)) : '—'}
-        </div>
+  grid.innerHTML = slice.map((c)=>`
+    <div class="slot" style="display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:start;background:#0f1736;border:1px dashed #2a3568;border-radius:12px;padding:10px">
+      <div class="imgwrap" style="width:120px;aspect-ratio:63/88;background:#0e152b;border-radius:8px;overflow:hidden;flex:0 0 auto">
+        <img class="card" src="${imgSrc(c.image_url)}" data-raw="${c.image_url||''}" onerror="onImgError(event)" style="width:100%;height:100%;object-fit:contain;display:block">
+      </div>
+      <div class="meta" style="min-width:0">
+        <div class="title" style="font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name||''}</div>
+        <div class="muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.set_name||''} ${c.collector_number?('• '+c.collector_number):''}</div>
+        <div class="muted">${c.condition||''}</div>
+        <div class="price" style="font-weight:900;margin-top:4px">${c.price_value!=null?('$'+Number(c.price_value).toFixed(2)):'—'}</div>
       </div>
     </div>
   `).join('');
 
-  for (let i = slice.length; i < PER_PAGE; i++) {
-    grid.innerHTML += `<div class="slot"></div>`;
-  }
+  for (let i = slice.length; i < PER_PAGE; i++) grid.innerHTML += `<div class="slot"></div>`;
 
   info.textContent = `Sayfa ${binderPage + 1}/${totalPages} • Kartlar ${start + 1}-${start + slice.length}`;
   prev.disabled = binderPage === 0;
   next.disabled = binderPage >= totalPages - 1;
-
   prev.onclick = () => { binderPage = Math.max(0, binderPage - 1); renderBinderSimple(cards); };
   next.onclick = () => { binderPage = Math.min(totalPages - 1, binderPage + 1); renderBinderSimple(cards); };
 }
 
-// ===== Data adaptörleri =====
-async function loadProfiles() {
-  const rows = await getJSON('/profiles');
-  const sel = $('#profileSel');
-  const saved = localStorage.getItem('profile') || 'default';
-  sel.innerHTML = rows.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-  sel.value = [...sel.options].some(o => o.value === saved) ? saved : 'default';
-}
-async function refreshInbox() {
-  const pid = $('#profileSel').value || 'default';
-  const cards = await getJSON(`/inbox?profile=${encodeURIComponent(pid)}`);
-  renderGrid(cards);
-}
 async function refreshBinder() {
   const pid = $('#profileSel').value || 'default';
   const bid = $('#binderSel').value || 'main';
   const cards = await getJSON(`/binder?profile=${encodeURIComponent(pid)}&binder=${encodeURIComponent(bid)}`);
   renderBinderSimple(cards);
 }
-async function refreshUI() {
-  await Promise.all([refreshInbox(), refreshBinder()]);
+
+// -------- Import Modal logic --------
+function openModal() { $('#importModal').style.display='block'; $('#importModal').setAttribute('aria-hidden','false'); }
+function closeModal() { $('#importModal').style.display='none';  $('#importModal').setAttribute('aria-hidden','true'); $('#importGrid').innerHTML=''; $('#importCount').textContent='0'; const selAll=$('#selectAll'); if (selAll) selAll.checked=false; }
+
+function renderImportGrid(cards) {
+  const grid = $('#importGrid');
+  const count = $('#importCount');
+  grid.innerHTML = '';
+
+  if (!cards.length) {
+    grid.innerHTML = '<div class="empty">Gösterilecek kart yok.</div>';
+    count.textContent = '0';
+    return;
+  }
+  count.textContent = String(cards.length);
+
+  for (const c of cards) {
+    const key = c.pc_item_id || c.pc_url;
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = `
+      <div class="row" style="gap:10px;align-items:flex-start">
+        <input type="checkbox" class="sel" data-key="${key}" style="margin-right:8px;margin-top:6px">
+        <img class="thumb" src="${imgSrc(c.image_url)}" data-raw="${c.image_url||''}" onerror="onImgError(event)">
+        <div>
+          <div class="title">${c.name || '—'}</div>
+          <div class="muted">${c.set_name||''} ${c.collector_number?('• '+c.collector_number):''}</div>
+          <div class="muted">${c.condition||''}</div>
+          <div class="price">${c.price_value!=null?('$'+Number(c.price_value).toFixed(2)):'—'}</div>
+          <a class="link" href="${c.pc_url}" target="_blank" rel="noreferrer">PriceCharting</a>
+        </div>
+      </div>`;
+    grid.appendChild(el);
+  }
+
+  const selectAll = $('#selectAll');
+  if (selectAll) {
+    selectAll.checked = true;
+    $$('#importGrid .sel').forEach(cb => cb.checked = true);
+    selectAll.onchange = () => $$('#importGrid .sel').forEach(cb => cb.checked = selectAll.checked);
+  }
 }
 
-// ===== Boot =====
+// -------- Boot --------
+async function loadProfiles() {
+  const rows = await getJSON('/profiles');
+  const sel = $('#profileSel');
+  const saved = localStorage.getItem('profile') || 'default';
+  sel.innerHTML = rows.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  sel.value = rows.some(r=>r.id===saved) ? saved : (rows[0]?.id || 'default');
+}
+
 async function boot() {
   try {
-    console.log('[UI] boot');
-
-    // tabs
-    $$('.tab').forEach(t => t.addEventListener('click', () => setActiveTab(t.dataset.tab)));
-
-    // profiles
     await loadProfiles();
-
-    // başlangıç: grid boş, binder’ı çek
-    setActiveTab('grid');
-    renderGrid([]);
     await refreshBinder();
 
-    // import
-    $('#importBtn').addEventListener('click', async () => {
-      const url = $('#urlInput').value.trim();
-      const cookie = $('#cookieInput')?.value.trim();
-      const profile = $('#profileSel').value || 'default';
-      if (!url) return alert('Lütfen PriceCharting linkini yapıştır');
-
-      $('#importBtn').disabled = true;
-      showLoading('İçe aktarılıyor…');
-      try {
-        const r = await getJSON('/import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, cookie, profile })
-        });
-        await refreshInbox();
-        setActiveTab('grid');
-        toast(`İçe aktarılan: ${r.imported ?? 0}`);
-      } catch (e) {
-        alert('İçe aktarma hatası: ' + e.message);
-      } finally {
-        hideLoading();
-        $('#importBtn').disabled = false;
-      }
-    });
-
-    // seçileni binder’a ekle
-    $('#addToBinderBtn').addEventListener('click', async () => {
-      const profile = $('#profileSel').value || 'default';
-      const binder = $('#binderSel').value || 'main';
-      const keys = $$('#grid .sel:checked').map(cb => cb.dataset.key).filter(Boolean);
-      if (!keys.length) return alert('Hiç kart seçmedin.');
-
-      showLoading('Binder’a ekleniyor…');
-      try {
-        await getJSON('/binder/add', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ profile, binder, cardKeys: keys })
-        });
-        binderPage = 0;
-        setActiveTab('binder');
-        await refreshBinder();
-        toast(`${keys.length} kart eklendi`);
-      } catch (e) {
-        alert('Binder ekleme hatası: ' + e.message);
-      } finally {
-        hideLoading();
-      }
-    });
-
-    // profil oluştur
-    $('#createProfileBtn').addEventListener('click', async () => {
-      const name = prompt('Yeni profil adı:');
-      if (!name) return;
-      const r = await getJSON('/profiles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
-      });
-      await loadProfiles();
-      $('#profileSel').value = r.id;
-      localStorage.setItem('profile', r.id);
-      renderGrid([]);
-      binderPage = 0;
-      await refreshBinder();
-    });
-
-    // değişimler
+    // Profil / Binder değişimleri sadece binder'ı yenilesin
     $('#profileSel').addEventListener('change', async () => {
       localStorage.setItem('profile', $('#profileSel').value);
       binderPage = 0;
-      await refreshUI();
+      await refreshBinder(); // Liste modali yok, sadece binder
     });
     $('#binderSel').addEventListener('change', async () => {
       binderPage = 0;
       await refreshBinder();
     });
 
+    // Yeni profil
+    $('#createProfileBtn').addEventListener('click', async () => {
+      const name = prompt('Yeni profil adı:');
+      if (!name) return;
+      const r = await getJSON('/profiles', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name })
+      });
+      await loadProfiles();
+      $('#profileSel').value = r.id;
+      localStorage.setItem('profile', r.id);
+      binderPage = 0;
+      await refreshBinder();
+    });
+
+    // Güncelle → import et ve modal aç
+    $('#importBtn').addEventListener('click', async () => {
+      const url = $('#urlInput').value.trim();
+      const cookie = $('#cookieInput')?.value.trim();
+      const profile = $('#profileSel').value || 'default';
+      if (!url) return alert('Lütfen PriceCharting linkini yapıştır');
+
+      // kaynak linkini set et
+      $('#openPc').href = url;
+
+      // butonda mini spinner
+      const btn = $('#importBtn');
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.innerHTML = `<span style="display:inline-block;width:16px;height:16px;border:2px solid #1f2b56;border-top-color:#fff;border-radius:50%;vertical-align:-2px;margin-right:8px;animation:spin .8s linear infinite"></span> Çalışıyor…`;
+
+      try {
+        const r = await getJSON('/import', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ url, cookie, profile })
+        });
+        // import sonrası inbox'ı çek ve modalda göster
+        const cards = await getJSON(`/inbox?profile=${encodeURIComponent(profile)}`);
+        renderImportGrid(cards);
+        openModal();
+        toast(`İçe aktarılan: ${r.imported ?? 0}`);
+      } catch (e) {
+        alert('İçe aktarma hatası: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+    });
+
+    // Modal: kapat
+    $('#closeModalBtn').addEventListener('click', closeModal);
+    $('#modalBackdrop').addEventListener('click', closeModal);
+
+    // Modal: seçileni binder’a ekle
+    $('#addToBinderBtn').addEventListener('click', async () => {
+      const profile = $('#profileSel').value || 'default';
+      const binder  = $('#binderSel').value || 'main';
+      const keys = $$('#importGrid .sel:checked').map(cb => cb.dataset.key).filter(Boolean);
+      if (!keys.length) return alert('Hiç kart seçmedin.');
+
+      const btn = $('#addToBinderBtn');
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.innerHTML = `<span style="display:inline-block;width:16px;height:16px;border:2px solid #1f2b56;border-top-color:#fff;border-radius:50%;vertical-align:-2px;margin-right:8px;animation:spin .8s linear infinite"></span> Ekleniyor…`;
+
+      try {
+        await getJSON('/binder/add', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ profile, binder, cardKeys: keys })
+        });
+        binderPage = 0;
+        await refreshBinder();
+        toast(`${keys.length} kart eklendi`);
+        // MODAL’I TEMİZLE & KAPAT
+        closeModal();
+      } catch (e) {
+        alert('Binder ekleme hatası: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+    });
+
   } catch (e) {
     console.error('[UI] boot error', e);
-    $('#grid').innerHTML = `<div class="empty">Veri alınamadı.</div>`;
+    alert('Önyükleme hatası: ' + (e.message || e));
   }
 }
 

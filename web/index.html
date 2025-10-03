@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Pokémon TCG Binder</title>
   <link rel="icon" href="data:,">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Pokémon TCG Binder</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -13,15 +13,13 @@
       <div class="bar">
         <h1>Pokémon TCG Binder</h1>
 
-        <select id="profileSel" title="Profil">
+        <select id="profileSel" class="sel">
           <option value="default">default</option>
         </select>
-
-        <select id="binderSel" title="Binder">
+        <select id="binderSel" class="sel">
           <option value="main">Ana Binder</option>
         </select>
-
-        <button id="createProfileBtn" style="background:var(--accent2);color:#06112b">Profil +</button>
+        <button id="createProfileBtn" class="btn-alt">Profil +</button>
 
         <input id="urlInput" type="text" placeholder="PriceCharting offers (collection) linkini yapıştır">
         <input id="cookieInput" type="text" placeholder="(opsiyonel) pricecharting.com cookie">
@@ -31,46 +29,18 @@
   </header>
 
   <main class="wrap">
-    <div class="tabs">
-      <div class="tab active" data-tab="grid">Liste</div>
-      <div class="tab" data-tab="binder">Binder</div>
-    </div>
-
-    <!-- Liste -->
-    <section id="gridPanel" class="panel">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div class="counts"><span id="countTxt">0</span> kart</div>
-        <div class="counts"><a class="link" href="#" id="openPc" target="_blank" rel="noreferrer">Kaynak linki</a></div>
-      </div>
-
-      <div id="grid" class="grid">
-        <div class="skeleton"></div>
-        <div class="skeleton"></div>
-        <div class="skeleton"></div>
-      </div>
-
-      <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0">
-        <label style="color:var(--muted)">
-          <input type="checkbox" id="selectAll"> Tümünü seç
-        </label>
-        <div>
-          <button id="addToBinderBtn">Seçileni Binder’a Ekle</button>
+    <!-- SADECE BINDER PANEL -->
+    <section id="binderPanel" class="panel">
+      <div class="flip-wrap">
+        <div class="binder-container">
+          <div id="binderGrid" class="grid9"></div>
+          <div id="binderNav">
+            <button id="prevBtn">◀︎ Önceki</button>
+            <span id="pageInfo" class="muted"></span>
+            <button id="nextBtn">Sonraki ▶︎</button>
+          </div>
         </div>
       </div>
-    </section>
-
-    <!-- Binder -->
-    <section id="binderPanel" class="panel" style="display:none">
-      <div class="flip-wrap">
-        <div class="grid9" id="binderGrid"></div>
-      </div>
-
-      <div id="binderNav" style="display:flex;gap:12px;justify-content:center;align-items:center;margin-top:12px">
-        <button id="prevBtn">◀︎ Önceki</button>
-        <span id="pageInfo" style="color:var(--muted)"></span>
-        <button id="nextBtn">Sonraki ▶︎</button>
-      </div>
-
       <div id="binderEmpty" class="empty" style="display:none">
         Henüz kart yok. Üstteki kutuya PriceCharting linkini yapıştırıp <b>Güncelle</b>’ye bas.
       </div>
@@ -79,10 +49,34 @@
 
   <div id="toast" class="toast"></div>
 
-  <!-- Loading mask -->
-  <div id="loading"><div class="spinner" aria-label="Yükleniyor"></div></div>
+  <!-- IMPORT MODAL -->
+  <div id="importModal" class="modal" aria-hidden="true" style="display:none">
+    <div class="modal__backdrop" id="modalBackdrop"></div>
+    <div class="modal__panel">
+      <div class="modal__head">
+        <div class="title">İçe Aktarılan Kartlar</div>
+        <div class="actions">
+          <label class="muted">
+            <input type="checkbox" id="selectAll"> Tümünü seç
+          </label>
+          <a id="openPc" class="link" href="#" target="_blank" rel="noreferrer">Kaynak linki</a>
+          <button id="closeModalBtn" class="btn-alt">Kapat</button>
+        </div>
+      </div>
 
-  <!-- Cache-bust için versiyon parametresi bırak -->
-  <script type="module" src="/app.js?v=20251002"></script>
+      <div id="importGrid" class="grid grid--import">
+        <!-- doldurulacak -->
+      </div>
+
+      <div class="modal__foot">
+        <div class="muted"><span id="importCount">0</span> kart</div>
+        <div class="spacer"></div>
+        <button id="addToBinderBtn">Seçileni Binder’a Ekle</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/app.js?v=20251003"></script>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 </body>
 </html>
