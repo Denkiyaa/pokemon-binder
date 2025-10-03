@@ -123,9 +123,7 @@ await pool.query(`
     sort_order INT UNSIGNED NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (profile_id, card_key),
-    KEY idx_profile_inbox_sort (profile_id, sort_order),
-    CONSTRAINT fk_inbox_profile FOREIGN KEY (profile_id)
-      REFERENCES profiles(id) ON DELETE CASCADE
+    KEY idx_profile_inbox_sort (profile_id, sort_order)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `);
 
@@ -138,9 +136,7 @@ await pool.query(`
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (profile_id, binder_id, card_key),
-    KEY idx_profile_binder (profile_id, binder_id),
-    CONSTRAINT fk_binder_profile FOREIGN KEY (profile_id)
-      REFERENCES profiles(id) ON DELETE CASCADE
+    KEY idx_profile_binder (profile_id, binder_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `);
 
