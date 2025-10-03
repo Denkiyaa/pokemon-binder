@@ -141,11 +141,22 @@ await pool.query(`
     KEY idx_profile_binder (profile_id, binder_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `);
-await pool.query(`ALTER TABLE profile_binder_cards ADD COLUMN IF NOT EXISTS sort_order INT UNSIGNED NOT NULL DEFAULT 0`);
-await pool.query(`ALTER TABLE profile_binder_cards ADD COLUMN IF NOT EXISTS count INT UNSIGNED NOT NULL DEFAULT 1`);
+await addColumnIfMissing('profile_inbox_cards', 'sort_order', 'sort_order INT UNSIGNED NOT NULL DEFAULT 0');
+await addColumnIfMissing('profile_binder_cards', 'sort_order', 'sort_order INT UNSIGNED NOT NULL DEFAULT 0');
+await addColumnIfMissing('profile_binder_cards', 'count', 'count INT UNSIGNED NOT NULL DEFAULT 1');
+
 
 
 // DB helpers
+
+async function addColumnIfMissing(table, column, ddl) {
+  try {
+    await pool.query(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+  } catch (e) {
+    if (e?.code !== 'ER_DUP_FIELDNAME') throw e;
+  }
+}
+
 async function listProfiles() {
   const [rows] = await pool.query(`SELECT id, name FROM profiles ORDER BY name`);
   return rows;
