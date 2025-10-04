@@ -1,4 +1,4 @@
-// api/scraper.js
+﻿// api/scraper.js
 import * as cheerio from 'cheerio';
 import fs from 'fs/promises';
 import { access, mkdir } from 'fs/promises';
@@ -16,7 +16,7 @@ const upgradeImg = (u = '') => {
   return ABS(u);
 };
 
-// --- kesinlikle modül seviyesinde hiçbir şey çalıştırma! ---
+// --- kesinlikle modÃ¼l seviyesinde hiÃ§bir ÅŸey Ã§alÄ±ÅŸtÄ±rma! ---
 
 async function resolveChromePath() {
   // 1) ENV
@@ -34,7 +34,7 @@ async function resolveChromePath() {
   for (const p of candidates) {
     try { await access(p); return p; } catch {}
   }
-  throw new Error('Chrome/Chromium bulunamadı. CHROME_PATH env ver veya chromium/google-chrome kur.');
+  throw new Error('Chrome/Chromium bulunamadÄ±. CHROME_PATH env ver veya chromium/google-chrome kur.');
 }
 
 function parseWithCheerio(html) {
@@ -77,7 +77,7 @@ function parseWithCheerio(html) {
     rows.push({ pc_url, pc_item_id, name, set_name, collector_number, condition, price_value, price_currency, image_url });
   });
 
-  // tekilleştir
+  // tekilleÅŸtir
   const seen = new Set();
   const out = [];
   for (const it of rows) {
@@ -90,14 +90,20 @@ function parseWithCheerio(html) {
 }
 
 async function renderWithPuppeteer(url, cookieStr) {
-  // ❗Puppeteer'ı yalnızca burada dinamik import et
+  // â—Puppeteer'Ä± yalnÄ±zca burada dinamik import et
   const puppeteer = (await import('puppeteer-core')).default;
 
   const exe = await resolveChromePath();
 
-  // www-data altında yazılabilir user-data-dir
+  // www-data altÄ±nda yazÄ±labilir user-data-dir
   const udd = '/var/www/html/pokemon-binder/api/.cache/chrome';
   await mkdir(udd, { recursive: true }).catch(() => {});
+
+  const crashpadRoot = '/var/www/html/pokemon-binder/api/.cache';
+  const udd = crashpadRoot + '/chrome';
+  await mkdir(udd, { recursive: true }).catch(() => {});
+  const crashpadDir = path.join(udd, 'crashpad');
+  await mkdir(crashpadDir, { recursive: true }).catch(() => {});
 
   const browser = await puppeteer.launch({
     headless: 'new',
@@ -111,10 +117,17 @@ async function renderWithPuppeteer(url, cookieStr) {
       '--no-first-run',
       '--no-default-browser-check',
       '--disable-blink-features=AutomationControlled',
+      '--disable-crash-reporter',
+      '--no-crashpad',
       '--window-size=1280,900',
     ],
-    // crashpad'in /var/www altında yazma problemi yaşamaması için
-    env: { ...process.env, XDG_DATA_HOME: '/var/www/html/pokemon-binder/api/.cache' },
+    env: {
+      ...process.env,
+      XDG_DATA_HOME: crashpadRoot,
+      CRASHPAD_DATABASE: crashpadDir,
+      CHROME_CRASHPAD_PIPE_NAME: '',
+      PUPPETEER_DISABLE_CRASH_REPORTER: '1'
+    },
   });
 
   try {
@@ -137,7 +150,7 @@ async function renderWithPuppeteer(url, cookieStr) {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForSelector('table.selling_table td.meta a[href^="/offer/"]', { timeout: 15000 }).catch(() => {});
 
-    // biraz aşağı kaydırıp daha çok satır yükleyelim
+    // biraz aÅŸaÄŸÄ± kaydÄ±rÄ±p daha Ã§ok satÄ±r yÃ¼kleyelim
     await page.evaluate(async () => {
       const sleep = (ms) => new Promise(r => setTimeout(r, ms));
       let prev = 0, same = 0;
@@ -169,3 +182,4 @@ export async function fetchCollection(url, { debug = false, cookie = '' } = {}) 
   }
   return items;
 }
+
