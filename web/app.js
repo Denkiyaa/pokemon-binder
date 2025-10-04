@@ -17,19 +17,66 @@ const imgSrc = (u) => (u ? `${API}/img?u=${encodeURIComponent(preferBig(u))}` : 
 function onImgError(ev) {
   const img = ev?.target || ev;
   if (!img) return;
-  let raw = '';
-  try {
-    const u = new URL(img.src, location.href);
-    raw = u.searchParams.get('u') ? decodeURIComponent(u.searchParams.get('u')) : '';
-  } catch {}
-  raw ||= img.getAttribute('data-raw') || '';
-  if (!raw) { img.style.display='none'; return; }
-  // 300â†’180â†’60 dÃ¼ÅŸ
-  if (/\/300\.(jpg|png)/i.test(raw)) { img.src = `${API}/img?u=${encodeURIComponent(raw.replace(/\/300\.(jpg|png)/i, '/180.$1'))}`; return; }
-  if (/\/180\.(jpg|png)/i.test(raw)) { img.src = `${API}/img?u=${encodeURIComponent(raw.replace(/\/180\.(jpg|png)/i, '/60.$1'))}`;  return; }
-  // bitti
-  img.style.display='none';
+
+  const localSrc = img.getAttribute('data-local') || '';
+  const remoteSrc = img.getAttribute('data-remote') || '';
+  const rawAttr = img.getAttribute('data-raw') || '';
+
+  if (localSrc && img.src === localSrc && img.dataset.localTried !== '1') {
+    img.dataset.localTried = '1';
+    if (remoteSrc) {
+      img.src = remoteSrc;
+      return;
+    }
+  }
+
+  if (remoteSrc && img.src !== remoteSrc && img.dataset.remoteTried !== '1') {
+    img.dataset.remoteTried = '1';
+    img.src = remoteSrc;
+    return;
+  }
+  if (remoteSrc && img.src === remoteSrc) {
+    img.dataset.remoteTried = '1';
+  }
+
+  let raw = rawAttr;
+  if (!raw && remoteSrc) {
+    try {
+      const u = new URL(remoteSrc, location.href);
+      raw = u.searchParams.get('u') ? decodeURIComponent(u.searchParams.get('u')) : '';
+    } catch {}
+  }
+
+  if (!raw) {
+    img.style.display = 'none';
+    return;
+  }
+
+  if (!img.dataset.baseRaw) img.dataset.baseRaw = raw;
+  const base = img.dataset.baseRaw;
+  let step = Number(img.dataset.fallbackStep || '0');
+  const variants = [base];
+  if (/\/300\.(jpg|png)(\?|$)/i.test(base)) {
+    variants.push(base.replace('/300.', '/180.'));
+    variants.push(base.replace('/300.', '/60.'));
+  } else if (/\/180\.(jpg|png)(\?|$)/i.test(base)) {
+    variants.push(base.replace('/180.', '/300.'));
+    variants.push(base.replace('/180.', '/60.'));
+  } else if (/\/60\.(jpg|png)(\?|$)/i.test(base)) {
+    variants.push(base.replace('/60.', '/180.'));
+    variants.push(base.replace('/60.', '/300.'));
+  }
+
+  if (step >= variants.length) {
+    img.style.display = 'none';
+    return;
+  }
+
+  img.dataset.fallbackStep = String(step + 1);
+  const nextRaw = variants[step];
+  img.src = `${API}/img?u=${encodeURIComponent(nextRaw)}`;
 }
+
 
 // -------- Toast --------
 const toast = (msg) => {
@@ -130,8 +177,8 @@ function binderCardHTML(card) {
   const extraInfo = !binderState.edit && card.count > 1 ? `<div class="muted">Adet: ${card.count}</div>` : '';
   const editControls = !binderState.edit ? '' : `
         <div class="edit-controls" data-key="${key}">
-          <button class="btn-ghost" data-action="move-prev" data-key="${key}" title="Bir onceki siraya tasi">â†</button>
-          <button class="btn-ghost" data-action="move-next" data-key="${key}" title="Bir sonraki siraya tasi">â†’</button>
+          <button class="btn-ghost" data-action="move-prev" data-key="${key}" title="Bir onceki siraya tasi">&lt;</button>
+          <button class="btn-ghost" data-action="move-next" data-key="${key}" title="Bir sonraki siraya tasi">&gt;</button>
           <div class="qty-control">
             <button class="btn-ghost" data-action="qty-minus" data-key="${key}" title="Adedi azalt">-</button>
             <button class="btn-ghost qty-display" data-action="qty-set" data-key="${key}" title="Adedi duzenle">${card.count}</button>
@@ -141,23 +188,38 @@ function binderCardHTML(card) {
         </div>
   `;
 
+  const rawImage = card.image_url || '';
+  const remoteSrc = imgSrc(rawImage);
+  const localSrc = card.master_id ? `${API}/img-local/${encodeURIComponent(String(card.master_id))}` : '';
+  const primarySrc = localSrc || remoteSrc;
+  const displaySrc = attrEscape(primarySrc);
+  const safeRemote = attrEscape(remoteSrc);
+  const safeLocal = attrEscape(localSrc);
+  const safeRaw = attrEscape(rawImage);
+  const titleText = htmlEscape(card.name || '');
+  const setLine = htmlEscape(card.set_name || '');
+  const collector = card.collector_number ? ' #' + htmlEscape(card.collector_number) : '';
+  const condition = htmlEscape(card.condition || '');
+  const priceText = card.price_value != null ? ('$' + Number(card.price_value).toFixed(2)) : '&mdash;';
+
   return `
     <div class="slot" data-key="${key}" style="display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:flex-start;background:#0f1736;border:1px dashed #2a3568;border-radius:12px;padding:12px;position:relative">
       <div class="imgwrap">
-        <img class="card" src="${imgSrc(card.image_url)}" data-raw="${attrEscape(card.image_url || '')}" onerror="onImgError(event)" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block">
+        <img class="card" src="${displaySrc}" data-raw="${safeRaw}" data-remote="${safeRemote}" data-local="${safeLocal}" onerror="onImgError(event)" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block">
         ${countBadge}
       </div>
       <div class="meta" style="min-width:0;display:flex;flex-direction:column;gap:4px;">
-        <div class="title" style="font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${card.name || ''}</div>
-        <div class="muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${card.set_name || ''}${card.collector_number ? ' #' + card.collector_number : ''}</div>
-        <div class="muted">${card.condition || ''}</div>
-        <div class="price" style="font-weight:900;margin-top:4px">${card.price_value != null ? ('$' + Number(card.price_value).toFixed(2)) : '&mdash;'}</div>
+        <div class="title" style="font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${titleText}</div>
+        <div class="muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${setLine}${collector}</div>
+        <div class="muted">${condition}</div>
+        <div class="price" style="font-weight:900;margin-top:4px">${priceText}</div>
         ${extraInfo}
         ${editControls}
       </div>
     </div>
   `;
 }
+
 
 function renderBinder() {
   const grid = $('#binderGrid');
@@ -420,9 +482,14 @@ function renderImportGrid(cards) {
   for (const c of cards) {
     const key = c.card_key || makeCardKey(c);
     const safeKey = attrEscape(key);
-    const imageRaw = c.image_url || '';
-    const imageSrc = attrEscape(imgSrc(imageRaw));
-    const safeRaw = attrEscape(imageRaw);
+    const rawImage = c.image_url || '';
+    const remoteSrc = imgSrc(rawImage);
+    const localSrc = c.master_id ? `${API}/img-local/${encodeURIComponent(String(c.master_id))}` : '';
+    const primarySrc = localSrc || remoteSrc;
+    const displaySrc = attrEscape(primarySrc);
+    const safeRemote = attrEscape(remoteSrc);
+    const safeLocal = attrEscape(localSrc);
+    const dataRaw = attrEscape(rawImage);
     const name = htmlEscape(c.name || '-');
     const setName = htmlEscape(c.set_name || '');
     const collector = c.collector_number ? ' #' + htmlEscape(c.collector_number) : '';
@@ -436,7 +503,7 @@ function renderImportGrid(cards) {
     el.innerHTML = `
       <input type="checkbox" class="sel" data-key="${safeKey}">
       <div class="import-card__figure">
-        <img class="thumb" src="${imageSrc}" data-raw="${safeRaw}" onerror="onImgError(event)">
+        <img class="thumb" src="${displaySrc}" data-raw="${dataRaw}" data-remote="${safeRemote}" data-local="${safeLocal}" onerror="onImgError(event)">
       </div>
       <div class="import-card__meta">
         <div class="title">${name}</div>
@@ -450,6 +517,7 @@ function renderImportGrid(cards) {
     const checkbox = el.querySelector('.sel');
     if (checkbox) checkbox.dataset.key = key;
   }
+
 
   const selectAll = $('#selectAll');
   if (selectAll) {
