@@ -1,8 +1,13 @@
-﻿// api/scraper.js
+// api/scraper.js
 import * as cheerio from 'cheerio';
 import fs from 'fs/promises';
 import { access, mkdir } from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const LAST_HTML_PATH = path.join(__dirname, 'data', 'last.html');
 
 const ABS = (href) => {
   try { return new URL(href, 'https://www.pricecharting.com').toString(); }
@@ -16,7 +21,7 @@ const upgradeImg = (u = '') => {
   return ABS(u);
 };
 
-// --- kesinlikle modÃ¼l seviyesinde hiÃ§bir ÅŸey Ã§alÄ±ÅŸtÄ±rma! ---
+// --- kesinlikle modul seviyesinde hicbir sey calistirma! ---
 
 async function resolveChromePath() {
   // 1) ENV
@@ -34,7 +39,7 @@ async function resolveChromePath() {
   for (const p of candidates) {
     try { await access(p); return p; } catch {}
   }
-  throw new Error('Chrome/Chromium bulunamadÄ±. CHROME_PATH env ver veya chromium/google-chrome kur.');
+  throw new Error('Chrome/Chromium bulunamadi. CHROME_PATH env ver veya chromium/google-chrome kur.');
 }
 
 function parseWithCheerio(html) {
@@ -77,7 +82,7 @@ function parseWithCheerio(html) {
     rows.push({ pc_url, pc_item_id, name, set_name, collector_number, condition, price_value, price_currency, image_url });
   });
 
-  // tekilleÅŸtir
+  // tekillestir
   const seen = new Set();
   const out = [];
   for (const it of rows) {
@@ -90,17 +95,14 @@ function parseWithCheerio(html) {
 }
 
 async function renderWithPuppeteer(url, cookieStr) {
-  // â—Puppeteer'Ä± yalnÄ±zca burada dinamik import et
+  // Import Puppeteer dynamically only here
   const puppeteer = (await import('puppeteer-core')).default;
 
   const exe = await resolveChromePath();
 
-  // www-data altÄ±nda yazÄ±labilir user-data-dir
-  const udd = '/var/www/html/pokemon-binder/api/.cache/chrome';
-  await mkdir(udd, { recursive: true }).catch(() => {});
-
-  const crashpadRoot = '/var/www/html/pokemon-binder/api/.cache';
-  const udd = crashpadRoot + '/chrome';
+  const crashpadRoot = path.join(__dirname, '.cache');
+  await mkdir(crashpadRoot, { recursive: true }).catch(() => {});
+  const udd = path.join(crashpadRoot, 'chrome');
   await mkdir(udd, { recursive: true }).catch(() => {});
   const crashpadDir = path.join(udd, 'crashpad');
   await mkdir(crashpadDir, { recursive: true }).catch(() => {});
@@ -150,7 +152,7 @@ async function renderWithPuppeteer(url, cookieStr) {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForSelector('table.selling_table td.meta a[href^="/offer/"]', { timeout: 15000 }).catch(() => {});
 
-    // biraz aÅŸaÄŸÄ± kaydÄ±rÄ±p daha Ã§ok satÄ±r yÃ¼kleyelim
+    // Scroll down a bit more to load extra rows
     await page.evaluate(async () => {
       const sleep = (ms) => new Promise(r => setTimeout(r, ms));
       let prev = 0, same = 0;
@@ -165,7 +167,10 @@ async function renderWithPuppeteer(url, cookieStr) {
     });
 
     const html = await page.content();
-    try { await fs.writeFile('./data/last.html', html, 'utf8'); } catch {}
+    try {
+      await mkdir(path.dirname(LAST_HTML_PATH), { recursive: true });
+      await fs.writeFile(LAST_HTML_PATH, html, 'utf8');
+    } catch {}
 
     const items = parseWithCheerio(html);
     return items.map((it, i) => ({ ...it, order_index: i + 1 }));
@@ -177,7 +182,7 @@ async function renderWithPuppeteer(url, cookieStr) {
 export async function fetchCollection(url, { debug = false, cookie = '' } = {}) {
   const items = await renderWithPuppeteer(url, cookie);
   if (debug) {
-    const html = await fs.readFile('./data/last.html', 'utf8').catch(() => '');
+    const html = await fs.readFile(LAST_HTML_PATH, 'utf8').catch(() => '');
     return { html, items };
   }
   return items;
