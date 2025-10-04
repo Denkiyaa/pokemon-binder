@@ -77,6 +77,9 @@ function onImgError(ev) {
   img.src = `${API}/img?u=${encodeURIComponent(nextRaw)}`;
 }
 
+if (typeof window !== 'undefined') {
+  window.onImgError = onImgError;
+}
 
 // -------- Toast --------
 const toast = (msg) => {
