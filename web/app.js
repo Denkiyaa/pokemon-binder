@@ -18,6 +18,12 @@ const imgSrc = (u) => {
   return `${API}/img?u=${encodeURIComponent(preferBig(u))}`;
 };
 
+const LIGHTBOX_SOURCES_KEY = 'previewSources';
+let lightboxRoot = null;
+let lightboxImageEl = null;
+let lightboxCaptionEl = null;
+let lightboxLastFocus = null;
+
 function onImgError(ev) {
   const img = ev?.target || ev;
   if (!img) return;
@@ -85,6 +91,102 @@ if (typeof window !== 'undefined') {
   window.onImgError = onImgError;
 }
 
+function collectPreviewSources(img) {
+  if (!img) return [];
+  const sources = [];
+  const local = img.getAttribute('data-local') || '';
+  if (local) sources.push(local);
+  const remote = img.getAttribute('data-remote') || '';
+  if (remote) sources.push(remote);
+  const raw = img.getAttribute('data-raw') || '';
+  if (raw) {
+    if (/^https?:\/\//i.test(raw)) {
+      sources.push(preferBig(raw));
+    } else {
+      sources.push(`${API}/img?u=${encodeURIComponent(preferBig(raw))}`);
+    }
+  }
+  const current = img.currentSrc || img.src;
+  if (current) sources.push(current);
+  return sources.filter(Boolean).filter((src, idx, arr) => arr.indexOf(src) === idx);
+}
+
+function openImagePreviewFromElement(img) {
+  const sources = collectPreviewSources(img);
+  if (!sources.length) return;
+  const title = img.getAttribute('data-title') || img.getAttribute('alt') || '';
+  openImageLightbox(sources, title);
+}
+
+function openImageLightbox(sources, title) {
+  if (!lightboxRoot || !lightboxImageEl) return;
+  lightboxImageEl.dataset[LIGHTBOX_SOURCES_KEY] = JSON.stringify(sources);
+  lightboxImageEl.dataset.index = '0';
+  lightboxImageEl.src = sources[0];
+  lightboxImageEl.alt = title || '';
+  if (lightboxCaptionEl) lightboxCaptionEl.textContent = title || '';
+  lightboxLastFocus = document.activeElement && typeof document.activeElement.focus === 'function' ? document.activeElement : null;
+  lightboxRoot.classList.add('is-open');
+  lightboxRoot.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('lightbox-open');
+  const closeBtn = lightboxRoot.querySelector('.image-lightbox__close');
+  if (closeBtn) closeBtn.focus();
+}
+
+function closeImageLightbox() {
+  if (!lightboxRoot || !lightboxImageEl) return;
+  lightboxRoot.classList.remove('is-open');
+  lightboxRoot.setAttribute('aria-hidden', 'true');
+  lightboxImageEl.removeAttribute('src');
+  delete lightboxImageEl.dataset[LIGHTBOX_SOURCES_KEY];
+  delete lightboxImageEl.dataset.index;
+  if (lightboxCaptionEl) lightboxCaptionEl.textContent = '';
+  document.body.classList.remove('lightbox-open');
+  if (lightboxLastFocus && typeof lightboxLastFocus.focus === 'function') {
+    lightboxLastFocus.focus();
+  }
+  lightboxLastFocus = null;
+}
+
+function handleLightboxImageError() {
+  const data = this.dataset[LIGHTBOX_SOURCES_KEY];
+  if (!data) {
+    closeImageLightbox();
+    return;
+  }
+  try {
+    const sources = JSON.parse(data);
+    let idx = Number(this.dataset.index || '0');
+    if (!Number.isFinite(idx)) idx = 0;
+    const next = idx + 1;
+    if (next >= sources.length) {
+      closeImageLightbox();
+      return;
+    }
+    this.dataset.index = String(next);
+    this.src = sources[next];
+  } catch (err) {
+    console.warn('[preview] fallback failed', err);
+    closeImageLightbox();
+  }
+}
+
+function handlePreviewableClick(ev) {
+  if (ev.defaultPrevented) return;
+  if (typeof ev.button === 'number' && ev.button !== 0) return;
+  const img = ev.target.closest('[data-previewable]');
+  if (!img || img.closest('#imageLightbox')) return;
+  if (img.tagName && img.tagName.toLowerCase() !== 'img') return;
+  ev.preventDefault();
+  openImagePreviewFromElement(img);
+}
+
+function handleLightboxKeydown(ev) {
+  if (ev.key !== 'Escape') return;
+  if (!lightboxRoot || !lightboxRoot.classList.contains('is-open')) return;
+  closeImageLightbox();
+}
+
 // -------- Toast --------
 const toast = (msg) => {
   const t = $('#toast'); if (!t) return;
@@ -125,7 +227,10 @@ function normalizeBinderCard(card, idx) {
 
 function updateBinderEditUi() {
   const btn = $('#toggleEditBtn');
-  if (btn) btn.textContent = binderState.edit ? 'Duzenlemeyi Bitir' : 'Duzenle';
+  if (btn) {
+    btn.textContent = binderState.edit ? 'Duzenlemeyi Bitir' : 'Duzenle';
+    btn.setAttribute('aria-pressed', binderState.edit ? 'true' : 'false');
+  }
   document.body.classList.toggle('binder-edit', binderState.edit);
 }
 
@@ -203,16 +308,29 @@ function binderCardHTML(card) {
   const safeRemote = attrEscape(remoteSrc);
   const safeLocal = attrEscape(localSrc);
   const safeRaw = attrEscape(rawImage);
-  const titleText = htmlEscape(card.name || '');
-  const setLine = htmlEscape(card.set_name || '');
-  const collector = card.collector_number ? ' #' + htmlEscape(card.collector_number) : '';
-  const condition = htmlEscape(card.condition || '');
+
+  const nameRaw = card.name || '';
+  const setRaw = card.set_name || '';
+  const collectorRaw = card.collector_number ? `#${card.collector_number}` : '';
+  const conditionRaw = card.condition || '';
+  const captionParts = [];
+  if (nameRaw) captionParts.push(nameRaw);
+  const setCaption = [setRaw, collectorRaw].filter(Boolean).join(' ');
+  if (setCaption) captionParts.push(setCaption);
+  if (conditionRaw) captionParts.push(conditionRaw);
+  const captionAttr = attrEscape(captionParts.join(' • '));
+
+  const titleText = htmlEscape(nameRaw);
+  const titleAttr = attrEscape(nameRaw);
+  const setLine = htmlEscape(setRaw);
+  const collector = collectorRaw ? ' ' + htmlEscape(collectorRaw) : '';
+  const condition = htmlEscape(conditionRaw);
   const priceText = card.price_value != null ? ('$' + Number(card.price_value).toFixed(2)) : '&mdash;';
 
   return `
     <div class="slot" data-key="${key}" style="display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:flex-start;background:#0f1736;border:1px dashed #2a3568;border-radius:12px;padding:12px;position:relative">
       <div class="imgwrap">
-        <img class="card" src="${displaySrc}" data-raw="${safeRaw}" data-remote="${safeRemote}" data-local="${safeLocal}" onerror="onImgError(event)" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block">
+        <img class="card" src="${displaySrc}" data-raw="${safeRaw}" data-remote="${safeRemote}" data-local="${safeLocal}" data-previewable="true" data-title="${captionAttr}" alt="${titleAttr}" onerror="onImgError(event)" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block">
         ${countBadge}
       </div>
       <div class="meta" style="min-width:0;display:flex;flex-direction:column;gap:4px;">
@@ -226,8 +344,6 @@ function binderCardHTML(card) {
     </div>
   `;
 }
-
-
 function renderBinder() {
   const grid = $('#binderGrid');
   const info = $('#pageInfo');
@@ -497,20 +613,32 @@ function renderImportGrid(cards) {
     const safeRemote = attrEscape(remoteSrc);
     const safeLocal = attrEscape(localSrc);
     const dataRaw = attrEscape(rawImage);
-    const name = htmlEscape(c.name || '-');
-    const setName = htmlEscape(c.set_name || '');
-    const collector = c.collector_number ? ' #' + htmlEscape(c.collector_number) : '';
-    const condition = htmlEscape(c.condition || '');
+    const nameRaw = c.name || '-';
+    const setRaw = c.set_name || '';
+    const collectorRaw = c.collector_number ? `#${c.collector_number}` : '';
+    const conditionRaw = c.condition || '';
+    const captionParts = [];
+    if (nameRaw) captionParts.push(nameRaw);
+    const setCaption = [setRaw, collectorRaw].filter(Boolean).join(' ');
+    if (setCaption) captionParts.push(setCaption);
+    if (conditionRaw) captionParts.push(conditionRaw);
+    const captionAttr = attrEscape(captionParts.join(' • '));
+    const name = htmlEscape(nameRaw);
+    const nameAttr = attrEscape(nameRaw);
+    const setName = htmlEscape(setRaw);
+    const collector = collectorRaw ? ' ' + htmlEscape(collectorRaw) : '';
+    const condition = htmlEscape(conditionRaw);
     const priceText = c.price_value != null ? `$${Number(c.price_value).toFixed(2)}` : '-';
     const price = htmlEscape(priceText);
     const pcLink = attrEscape(c.pc_url || '');
+
     const el = document.createElement('div');
     c.card_key = key;
     el.className = 'card import-card';
     el.innerHTML = `
       <input type="checkbox" class="sel" data-key="${safeKey}">
       <div class="import-card__figure">
-        <img class="thumb" src="${displaySrc}" data-raw="${dataRaw}" data-remote="${safeRemote}" data-local="${safeLocal}" onerror="onImgError(event)">
+        <img class="thumb" src="${displaySrc}" data-raw="${dataRaw}" data-remote="${safeRemote}" data-local="${safeLocal}" data-previewable="true" data-title="${captionAttr}" alt="${nameAttr}" onerror="onImgError(event)">
       </div>
       <div class="import-card__meta">
         <div class="title">${name}</div>
@@ -556,6 +684,22 @@ async function boot() {
   try {
     await loadProfiles();
     updateBinderEditUi();
+
+    lightboxRoot = $('#imageLightbox');
+    lightboxImageEl = $('#lightboxImage');
+    lightboxCaptionEl = $('#lightboxCaption');
+    if (lightboxImageEl) {
+      lightboxImageEl.addEventListener('error', handleLightboxImageError);
+    }
+    if (lightboxRoot) {
+      lightboxRoot.addEventListener('click', (ev) => {
+        if (ev.target === lightboxRoot || (ev.target.dataset && ev.target.dataset.lightboxClose !== undefined)) {
+          closeImageLightbox();
+        }
+      });
+    }
+    document.addEventListener('keydown', handleLightboxKeydown);
+    document.addEventListener('click', handlePreviewableClick);
 
     const binderSearch = $('#binderSearch');
     if (binderSearch) binderSearch.addEventListener('input', (ev) => binderSetQuery(ev.target.value));

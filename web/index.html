@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Pokémon TCG Binder</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css?v=20251005">
+  <link rel="stylesheet" href="styles.css?v=20251006">
 </head>
 <body>
   <header>
@@ -34,15 +34,20 @@
     <!-- SADECE BINDER PANEL -->
     <section id="binderPanel" class="panel">
       <div class="flip-wrap">
-        <div class="binder-container">
-          <div id="binderGrid" class="grid9"></div>
+        <div class="binder-container">
+          <div id="binderGrid" class="grid9"></div>
+
+          <div id="binderNav" class="binder-tools">
+            <button id="toggleEditBtn" class="btn-ghost btn-compact" aria-pressed="false">Duzenle</button>
+            <div class="spacer"></div>
+            <button id="prevBtn" class="btn-ghost btn-compact">◀︎ Önceki</button>
+            <span id="pageInfo" class="muted"></span>
+            <button id="nextBtn" class="btn-ghost btn-compact">Sonraki ▶︎</button>
+          </div>
+        </div>
 
-          <div id="binderNav" class="binder-tools">
-            <button id="prevBtn" class="btn-ghost btn-compact">◀︎ Önceki</button>
-            <span id="pageInfo" class="muted"></span>
-            <button id="nextBtn" class="btn-ghost btn-compact">Sonraki ▶︎</button>
-          </div>
-        </div>
+
+
       </div>
 
       <div id="binderEmpty" class="empty" style="display:none">
@@ -100,9 +105,19 @@
     </div>
   </div>
 
-  <script type="module" src="/app.js?v=20251005"></script>
+  <div id="imageLightbox" class="image-lightbox" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="image-lightbox__backdrop" data-lightbox-close></div>
+    <figure class="image-lightbox__panel">
+      <button type="button" class="image-lightbox__close" data-lightbox-close aria-label="Kapat">&times;</button>
+      <img id="lightboxImage" src="" alt="">
+      <figcaption id="lightboxCaption" class="image-lightbox__caption"></figcaption>
+    </figure>
+  </div>
+
+  <script type="module" src="/app.js?v=20251006"></script>
   <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 </body>
 </html>
+
 
 
