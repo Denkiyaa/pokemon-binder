@@ -574,16 +574,26 @@ a.link {
 .modal__foot {
     padding: 16px 24px;
     border-bottom: 1px solid rgba(106, 162, 255, .18);
-    display: flex;
-    align-items: center;
-    gap: 12px;
     background: rgba(8, 12, 28, .6);
     backdrop-filter: blur(6px);
 }
 
+.modal__head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .modal__foot {
+    display: none;
+    align-items: center;
+    gap: 12px;
     border-top: 1px solid rgba(106, 162, 255, .18);
     border-bottom: 0;
+}
+
+.modal.is-open .modal__foot {
+    display: flex;
 }
 
 .modal__head .title {
@@ -913,6 +923,3 @@ body.binder-edit .slot {
 }
 
 
-.modal:not(.is-open) .modal__foot {
-    display: none;
-}

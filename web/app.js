@@ -13,8 +13,7 @@ const $$ = (s) => Array.from(document.querySelectorAll(s));
 // -------- img helpers --------
 const preferBig = (u) => {
   if (!u) return '';
-  return u.replace(/\/(60|180|300)\.(jpg|png)(\?.*)?$/i, '/600.$2$3')
-          .replace(/\/(60|180|300|600)\.(jpg|png)(\?.*)?$/i, '/600.$2$3');
+  return u.replace(/\/(60|180|300)\.(jpg|png)(\?.*)?$/i, '/600.$2$3');
 };
 const imgSrc = (u) => {
   if (!u) return '';
@@ -107,11 +106,15 @@ function collectPreviewSources(img) {
     if (/^https?:\/\//i.test(raw)) {
       const hi = preferBig(raw);
       sources.push(hi);
-      sources.push(hi.replace('/600.', '/1000.'));
+      if (/\/600\.(jpg|png)/i.test(hi)) {
+        sources.push(hi.replace(/\/600\.(jpg|png)/i, '/1000.$1'));
+      }
     } else {
-      const hi = `${API}/img?u=${encodeURIComponent(preferBig(raw))}`;
-      sources.push(hi);
-      sources.push(hi.replace('/600.', '/1000.'));
+      const hiRaw = preferBig(raw);
+      sources.push(`${API}/img?u=${encodeURIComponent(hiRaw)}`);
+      if (/\/600\.(jpg|png)/i.test(hiRaw)) {
+        sources.push(`${API}/img?u=${encodeURIComponent(hiRaw.replace(/\/600\.(jpg|png)/i, '/1000.$1'))}`);
+      }
     }
   }
   const current = img.currentSrc || img.src;
@@ -849,8 +852,6 @@ async function boot() {
 }
 
 boot();
-
-
 
 
 
