@@ -554,11 +554,14 @@ function openModal() {
   modal.classList.add('is-open');
   document.body.classList.add('modal-open');
   modal.setAttribute('aria-hidden', 'false');
+  const foot = modal.querySelector('.modal__foot');
+  if (foot) foot.style.display = 'flex';
   window.requestAnimationFrame(() => {
     const panel = modal.querySelector('.modal__panel');
     panel?.focus?.();
   });
 }
+
 
 function closeModal() {
   const modal = $('#importModal');
@@ -566,6 +569,8 @@ function closeModal() {
   modal.classList.remove('is-open');
   modal.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('modal-open');
+  const foot = modal.querySelector('.modal__foot');
+  if (foot) foot.style.display = 'none';
   const reset = () => {
     const grid = $('#importGrid');
     const count = $('#importCount');
@@ -579,6 +584,7 @@ function closeModal() {
   };
   window.setTimeout(reset, 220);
 }
+
 
 function renderImportGrid(cards) {
   const grid = $('#importGrid');
