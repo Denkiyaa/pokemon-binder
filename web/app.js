@@ -1,4 +1,4 @@
-﻿// -------- API helper --------
+// -------- API helper --------
 const API = '/api';
 async function getJSON(url, opts) {
   const r = await fetch(API + url, opts);
@@ -12,7 +12,11 @@ const $$ = (s) => Array.from(document.querySelectorAll(s));
 
 // -------- img helpers --------
 const preferBig = (u) => u ? u.replace(/\/(60|180)\.(jpg|png)(\?.*)?$/i, '/300.$2$3') : '';
-const imgSrc = (u) => (u ? `${API}/img?u=${encodeURIComponent(preferBig(u))}` : '');
+const imgSrc = (u) => {
+  if (!u) return '';
+  if (/^https?:\/\//i.test(u)) return preferBig(u);
+  return `${API}/img?u=${encodeURIComponent(preferBig(u))}`;
+};
 
 function onImgError(ev) {
   const img = ev?.target || ev;
