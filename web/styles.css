@@ -754,7 +754,8 @@ a.link {
 .grid--import .card.import-card .import-card__figure {
     width: 140px;
     max-width: 100%;
-    aspect-ratio: 63 / 88;
+    height: calc(140px * 88 / 63);
+    min-height: calc(140px * 88 / 63);
     border-radius: 12px;
     overflow: hidden;
     background: #0e152b;
@@ -805,5 +806,7 @@ a.link {
 
     .grid--import .card.import-card .import-card__figure {
         width: 110px;
+        height: calc(110px * 88 / 63);
+        min-height: calc(110px * 88 / 63);
     }
 }
