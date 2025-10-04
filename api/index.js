@@ -274,11 +274,14 @@ async function listInboxCards(profileId) {
     `SELECT payload FROM profile_inbox_cards WHERE profile_id=? ORDER BY sort_order ASC, created_at ASC`,
     [profileId]
   );
-  const cards = rows.map(row => parsePayload(row.payload)).filter(Boolean);
+  const cards = rows
+    .map(row => parsePayload(row.payload))
+    .filter(Boolean)
+    .map(card => (card?.card_key ? card : { ...card, card_key: cardKey(card) }));
   if (cards.length) return cards;
 
   const migrated = await migrateLegacyInbox(profileId);
-  if (migrated.length) return migrated;
+  if (migrated.length) return migrated.map(card => (card?.card_key ? card : { ...card, card_key: cardKey(card) }));
   return [];
 }
 
@@ -292,7 +295,9 @@ async function replaceInboxCards(profileId, cards) {
       const placeholders = cards.map(() => '(?,?,?,?)').join(', ');
       const values = [];
       cards.forEach((card, index) => {
-        values.push(profileId, cardKey(card), JSON.stringify(card), index);
+        const key = cardKey(card);
+        const payload = card?.card_key ? card : { ...card, card_key: key };
+        values.push(profileId, key, JSON.stringify(payload), index);
       });
       await conn.query(
         `INSERT INTO profile_inbox_cards (profile_id, card_key, payload, sort_order) VALUES ${placeholders}`,
@@ -313,9 +318,10 @@ async function migrateLegacyInbox(profileId) {
   if (!legacy.length) return [];
   const clean = dedupCards(legacy);
   if (!clean.length) return [];
-  await replaceInboxCards(profileId, clean);
+  const normalized = clean.map(card => (card?.card_key ? card : { ...card, card_key: cardKey(card) }));
+  await replaceInboxCards(profileId, normalized);
   await fs.unlink(legacyInboxPath(profileId)).catch(() => {});
-  return clean;
+  return normalized;
 }
 
 async function listBinderCards(profileId, binderId) {
@@ -692,6 +698,8 @@ api.post('/binder/add', async (req, res) => {
   } catch (e) {
     console.error('[binder][add]', e);
     res.status(500).json({ error: 'binder add failed' });
+  }
+});
 
 api.post('/binder/remove', async (req, res) => {
   const pid = (req.body?.profile || 'default').toString();
@@ -746,9 +754,6 @@ api.post('/binder/auto-sort', async (req, res) => {
   }
 });
 
-
-  }
-});
 
 // import + master’a yaz + görseli indir
 api.post('/import', async (req, res) => {

@@ -53,6 +53,11 @@ const binderEmptyDefault = $('#binderEmpty')?.innerHTML || '';
 
 const htmlEscape = (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const attrEscape = (value) => htmlEscape(value).replace(/"/g, '&quot;');
+const makeCardKey = (card = {}) => {
+  const id = card?.pc_item_id || card?.pc_url || '';
+  const price = card?.price_value ?? '';
+  return `${id}|${price}`;
+};
 
 function normalizeBinderCard(card, idx) {
   const key = card?.binderKey || card?.binder_key || card?.card_key || card?.pc_item_id || card?.pc_url || `card-${idx}`;
@@ -413,23 +418,37 @@ function renderImportGrid(cards) {
   count.textContent = String(cards.length);
 
   for (const c of cards) {
-    const key = c.pc_item_id || c.pc_url;
+    const key = c.card_key || makeCardKey(c);
+    const safeKey = attrEscape(key);
+    const imageRaw = c.image_url || '';
+    const imageSrc = attrEscape(imgSrc(imageRaw));
+    const safeRaw = attrEscape(imageRaw);
+    const name = htmlEscape(c.name || '-');
+    const setName = htmlEscape(c.set_name || '');
+    const collector = c.collector_number ? ' #' + htmlEscape(c.collector_number) : '';
+    const condition = htmlEscape(c.condition || '');
+    const priceText = c.price_value != null ? `$${Number(c.price_value).toFixed(2)}` : '-';
+    const price = htmlEscape(priceText);
+    const pcLink = attrEscape(c.pc_url || '');
     const el = document.createElement('div');
+    c.card_key = key;
     el.className = 'card import-card';
     el.innerHTML = `
-      <input type="checkbox" class="sel" data-key="${key}">
+      <input type="checkbox" class="sel" data-key="${safeKey}">
       <div class="import-card__figure">
-        <img class="thumb" src="${imgSrc(c.image_url)}" data-raw="${c.image_url||''}" onerror="onImgError(event)">
+        <img class="thumb" src="${imageSrc}" data-raw="${safeRaw}" onerror="onImgError(event)">
       </div>
       <div class="import-card__meta">
-        <div class="title">${c.name || '-'}</div>
-        <div class="muted">${c.set_name||''}${c.collector_number?(' #' + c.collector_number):''}</div>
-        <div class="muted">${c.condition||''}</div>
-        <div class="price">${c.price_value!=null?('$'+Number(c.price_value).toFixed(2)):'-'}</div>
-        <a class="link" href="${c.pc_url}" target="_blank" rel="noreferrer">PriceCharting</a>
+        <div class="title">${name}</div>
+        <div class="muted">${setName}${collector}</div>
+        <div class="muted">${condition}</div>
+        <div class="price">${price}</div>
+        <a class="link" href="${pcLink}" target="_blank" rel="noreferrer">PriceCharting</a>
       </div>
     `;
     grid.appendChild(el);
+    const checkbox = el.querySelector('.sel');
+    if (checkbox) checkbox.dataset.key = key;
   }
 
   const selectAll = $('#selectAll');
