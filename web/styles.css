@@ -329,7 +329,7 @@ a.link {
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     image-rendering: auto;
     display: block;
 }
@@ -726,7 +726,7 @@ a.link {
     display: grid;
     grid-template-columns: auto 140px minmax(0, 1fr);
     gap: 16px;
-    align-items: center;
+    align-items: stretch;
     padding: 16px;
 }
 
@@ -737,17 +737,22 @@ a.link {
 
 .grid--import .card.import-card .import-card__figure {
     width: 140px;
+    max-width: 100%;
     aspect-ratio: 63 / 88;
     border-radius: 12px;
     overflow: hidden;
     background: #0e152b;
     box-shadow: 0 8px 16px rgba(2, 6, 22, .5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .grid--import .card.import-card .import-card__figure img.thumb {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    display: block;
 }
 
 .grid--import .card.import-card .import-card__meta {
