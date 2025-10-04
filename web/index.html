@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="tr">
 <head>
-  <link rel="icon" href="data:,">
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Pokémon TCG Binder</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -16,9 +16,11 @@
         <select id="profileSel" class="sel">
           <option value="default">default</option>
         </select>
+
         <select id="binderSel" class="sel">
           <option value="main">Ana Binder</option>
         </select>
+
         <button id="createProfileBtn" class="btn-alt">Profil +</button>
 
         <input id="urlInput" type="text" placeholder="PriceCharting offers (collection) linkini yapıştır">
@@ -34,13 +36,15 @@
       <div class="flip-wrap">
         <div class="binder-container">
           <div id="binderGrid" class="grid9"></div>
-          <div id="binderNav">
-            <button id="prevBtn">◀︎ Önceki</button>
+
+          <div id="binderNav" class="binder-tools">
+            <button id="prevBtn" class="btn-ghost btn-compact">◀︎ Önceki</button>
             <span id="pageInfo" class="muted"></span>
-            <button id="nextBtn">Sonraki ▶︎</button>
+            <button id="nextBtn" class="btn-ghost btn-compact">Sonraki ▶︎</button>
           </div>
         </div>
       </div>
+
       <div id="binderEmpty" class="empty" style="display:none">
         Henüz kart yok. Üstteki kutuya PriceCharting linkini yapıştırıp <b>Güncelle</b>’ye bas.
       </div>
@@ -52,6 +56,7 @@
   <!-- IMPORT MODAL -->
   <div id="importModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="modal__backdrop" id="modalBackdrop"></div>
+
     <div class="modal__panel" tabindex="-1">
       <div class="modal__head">
         <div class="title">İçe Aktarılan Kartlar</div>
@@ -64,8 +69,27 @@
         </div>
       </div>
 
+      <!-- KARTLAR BURAYA DOLACAK -->
       <div id="importGrid" class="grid grid--import">
-        <!-- doldurulacak -->
+        <!--
+        ÖRNEK ŞABLON (JS ile basılacak):
+        <div class="card import-card" data-key="UNIQUE_KEY">
+          <input type="checkbox" class="sel" data-key="UNIQUE_KEY" checked>
+
+          <div class="import-card__figure">
+            <img class="thumb" src="/api/img?u=IMAGE_URL" alt="Kart görseli" onerror="this.style.display='none'">
+          </div>
+
+          <div class="import-card__meta">
+            <div class="title">Kart Adı</div>
+            <div class="muted">Set Adı • #123 • Condition</div>
+            <div class="price">$1.23</div>
+            <!-- istersen link:
+            <a class="link" href="PRICECHARTING_URL" target="_blank" rel="noreferrer">PriceCharting</a>
+            -->
+          </div>
+        </div>
+        -->
       </div>
 
       <div class="modal__foot">
@@ -76,8 +100,7 @@
     </div>
   </div>
 
-  <script type="module" src="/app.js?v=20251003"></script>
+  <script type="module" src="/app.js?v=20251004"></script>
   <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 </body>
 </html>
-

@@ -613,6 +613,8 @@ a.link {
 .grid--import .card {
     border: 1px solid rgba(106, 162, 255, .08);
     border-radius: 14px;
+    min-height: 180px;
+    display: block;
     padding: 12px;
     background: rgba(14, 21, 43, .85);
     box-shadow: 0 12px 30px rgba(2, 6, 22, .45);
@@ -642,13 +644,14 @@ a.link {
 }
 
 
+
+/* Görselin kendisi – mutlaka tamamı görünsün */
 .grid--import img.thumb {
-    width: 120px;
-    height: 160px;
-    object-fit: cover;
-    border-radius: 12px;
-    background: #0e152b;
-    box-shadow: 0 8px 16px rgba(2, 6, 22, .5);
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    /* kartın tamamı görünsün */
+    display: block;
 }
 
 @media (max-width: 720px) {
@@ -674,7 +677,20 @@ a.link {
     display: grid;
     grid-template-columns: auto 140px 1fr;
     gap: 14px;
-    align-items: center;
+    align-items: stretch;
+    gap: 16px;
+}
+
+/* Görsel çerçevesi */
+.grid--import .card .row .figure {
+    width: 140px;
+    max-width: 100%;
+    aspect-ratio: 63 / 88;
+    /* Pokemon kart oranı */
+    background: #0e152b;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 16px rgba(2, 6, 22, .5);
 }
 
 .grid--import .card .row .info {
