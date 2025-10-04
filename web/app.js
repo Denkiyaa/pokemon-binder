@@ -11,7 +11,11 @@ const $  = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 
 // -------- img helpers --------
-const preferBig = (u) => u ? u.replace(/\/(60|180)\.(jpg|png)(\?.*)?$/i, '/300.$2$3') : '';
+const preferBig = (u) => {
+  if (!u) return '';
+  return u.replace(/\/(60|180|300)\.(jpg|png)(\?.*)?$/i, '/600.$2$3')
+          .replace(/\/(60|180|300|600)\.(jpg|png)(\?.*)?$/i, '/600.$2$3');
+};
 const imgSrc = (u) => {
   if (!u) return '';
   if (/^https?:\/\//i.test(u)) return preferBig(u);
@@ -101,9 +105,13 @@ function collectPreviewSources(img) {
   const raw = img.getAttribute('data-raw') || '';
   if (raw) {
     if (/^https?:\/\//i.test(raw)) {
-      sources.push(preferBig(raw));
+      const hi = preferBig(raw);
+      sources.push(hi);
+      sources.push(hi.replace('/600.', '/1000.'));
     } else {
-      sources.push(`${API}/img?u=${encodeURIComponent(preferBig(raw))}`);
+      const hi = `${API}/img?u=${encodeURIComponent(preferBig(raw))}`;
+      sources.push(hi);
+      sources.push(hi.replace('/600.', '/1000.'));
     }
   }
   const current = img.currentSrc || img.src;
@@ -841,7 +849,6 @@ async function boot() {
 }
 
 boot();
-
 
 
 

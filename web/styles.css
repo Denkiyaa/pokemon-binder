@@ -912,3 +912,7 @@ body.binder-edit .slot {
     border-color: rgba(106, 162, 255, .8);
 }
 
+
+.modal:not(.is-open) .modal__foot {
+    display: none;
+}
