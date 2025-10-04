@@ -721,3 +721,68 @@ a.link {
 }
 
 
+
+.grid--import .card.import-card {
+    display: grid;
+    grid-template-columns: auto 140px minmax(0, 1fr);
+    gap: 16px;
+    align-items: center;
+    padding: 16px;
+}
+
+.grid--import .card.import-card input.sel {
+    margin: 0;
+    align-self: flex-start;
+}
+
+.grid--import .card.import-card .import-card__figure {
+    width: 140px;
+    aspect-ratio: 63 / 88;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0e152b;
+    box-shadow: 0 8px 16px rgba(2, 6, 22, .5);
+}
+
+.grid--import .card.import-card .import-card__figure img.thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.grid--import .card.import-card .import-card__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.grid--import .card.import-card .title {
+    font-weight: 800;
+    font-size: 15px;
+}
+
+.grid--import .card.import-card .muted {
+    font-size: 13px;
+}
+
+.grid--import .card.import-card .price {
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+@media (max-width: 720px) {
+    .modal__panel .grid--import {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .grid--import .card.import-card {
+        grid-template-columns: auto 110px minmax(0, 1fr);
+        gap: 12px;
+        padding: 14px;
+    }
+
+    .grid--import .card.import-card .import-card__figure {
+        width: 110px;
+    }
+}

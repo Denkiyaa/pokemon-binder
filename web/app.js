@@ -415,19 +415,20 @@ function renderImportGrid(cards) {
   for (const c of cards) {
     const key = c.pc_item_id || c.pc_url;
     const el = document.createElement('div');
-    el.className = 'card';
+    el.className = 'card import-card';
     el.innerHTML = `
-      <div class="row">
-        <input type="checkbox" class="sel" data-key="${key}">
+      <input type="checkbox" class="sel" data-key="${key}">
+      <div class="import-card__figure">
         <img class="thumb" src="${imgSrc(c.image_url)}" data-raw="${c.image_url||''}" onerror="onImgError(event)">
-        <div class="info">
-          <div class="title">${c.name || 'â€”'}</div>
-          <div class="muted">${c.set_name||''} ${c.collector_number?('â€¢ '+c.collector_number):''}</div>
-          <div class="muted">${c.condition||''}</div>
-          <div class="price">${c.price_value!=null?('$'+Number(c.price_value).toFixed(2)):'â€”'}</div>
-          <a class="link" href="${c.pc_url}" target="_blank" rel="noreferrer">PriceCharting</a>
-        </div>
-      </div>`;
+      </div>
+      <div class="import-card__meta">
+        <div class="title">${c.name || '-'}</div>
+        <div class="muted">${c.set_name||''}${c.collector_number?(' #' + c.collector_number):''}</div>
+        <div class="muted">${c.condition||''}</div>
+        <div class="price">${c.price_value!=null?('$'+Number(c.price_value).toFixed(2)):'-'}</div>
+        <a class="link" href="${c.pc_url}" target="_blank" rel="noreferrer">PriceCharting</a>
+      </div>
+    `;
     grid.appendChild(el);
   }
 
