@@ -1,17 +1,38 @@
 // api/utils/img-candidate.js
+const SIZE_ORDER = [1600, 1200, 1000, 800, 600, 480, 400, 360, 320, 300, 240, 180, 120, 90, 60];
+const WIDTH_ORDER = [1600, 1200, 1000, 800, 600, 480];
+
+const buildWithSize = (pathPart, suffix, size, ext) => `${pathPart}/${size}${ext}${suffix}`;
+
 export function candidatesForHigher(u = '') {
   if (!u) return [];
-  const list = [u];
-  const add = v => { if (v && !list.includes(v)) list.push(v); };
 
-  if (/\/60\.(jpg|png)/i.test(u))  { add(u.replace('/60.', '/180.')); add(u.replace('/60.', '/300.')); add(u.replace('/60.', '/600.')); add(u.replace('/60.', '/1000.')); }
-  if (/\/180\.(jpg|png)/i.test(u)) { add(u.replace('/180.', '/300.')); add(u.replace('/180.', '/600.')); add(u.replace('/180.', '/1000.')); }
-  if (/\/300\.(jpg|png)/i.test(u)) { add(u.replace('/300.', '/600.')); add(u.replace('/300.', '/1000.')); }
-  if (/\/600\.(jpg|png)/i.test(u)) { add(u.replace('/600.', '/1000.')); }
+  const seen = new Set();
+  const out = [];
+  const push = (value) => {
+    if (!value || seen.has(value)) return;
+    seen.add(value);
+    out.push(value);
+  };
 
-  if (/\bw=\d+/.test(u)) {
-    add(u.replace(/([?&])w=\d+/, '$1w=480'));
-    add(u.replace(/([?&])w=\d+/, '$1w=800'));
+  const [pathOnly, queryPart = ''] = u.split('?');
+  const querySuffix = queryPart ? `?${queryPart}` : '';
+  const sizeMatch = pathOnly.match(/\/(\d+)(\.(?:jpg|png))$/i);
+
+  if (sizeMatch) {
+    const [, , ext] = sizeMatch;
+    const prefix = pathOnly.slice(0, -sizeMatch[0].length);
+    for (const target of SIZE_ORDER) {
+      push(buildWithSize(prefix, querySuffix, target, ext));
+    }
   }
-  return list;
+
+  if (/([?&])w=\d+/i.test(u)) {
+    for (const width of WIDTH_ORDER) {
+      push(u.replace(/([?&])w=\d+/gi, `$1w=${width}`));
+    }
+  }
+
+  push(u);
+  return out;
 }

@@ -104,7 +104,7 @@ await pool.query(`
 await pool.query(`
   CREATE TABLE IF NOT EXISTS images (
     master_id BIGINT UNSIGNED NOT NULL,
-    quality_tag VARCHAR(16) NOT NULL, -- '1000','600','300','180','60','orig'
+    quality_tag VARCHAR(16) NOT NULL, -- '1600','1000','600','300','240','180','60','orig'
     source_url TEXT NOT NULL,
     local_path TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -180,11 +180,11 @@ async function createProfile(name = 'profile') {
 }
 
 function qualityTagFromUrl(u = '') {
-  if (/\/1000\./i.test(u)) return '1000';
-  if (/\/600\./i.test(u))  return '600';
-  if (/\/300\./i.test(u))  return '300';
-  if (/\/180\./i.test(u))  return '180';
-  if (/\/60\./i.test(u))   return '60';
+  if (!u) return 'orig';
+  const sizeMatch = u.match(/\/(\d+)\.(?:jpg|png)/i);
+  if (sizeMatch) return sizeMatch[1];
+  const widthMatch = u.match(/[?&]w=(\d+)/i);
+  if (widthMatch) return `w${widthMatch[1]}`;
   return 'orig';
 }
 
@@ -653,7 +653,15 @@ api.get('/img-local/:id', async (req, res) => {
 
   const [rows] = await pool.query(
     `SELECT local_path FROM images
-     WHERE master_id=? ORDER BY FIELD(quality_tag,'1000','600','300','180','60','orig') LIMIT 1`,
+     WHERE master_id=?
+     ORDER BY
+       CASE
+         WHEN quality_tag REGEXP '^[0-9]+$' THEN CAST(quality_tag AS UNSIGNED)
+         WHEN quality_tag LIKE 'w%' THEN CAST(SUBSTRING(quality_tag, 2) AS UNSIGNED)
+         ELSE 0
+       END DESC,
+       quality_tag DESC
+     LIMIT 1`,
     [id]
   );
   const fp = rows?.[0]?.local_path;

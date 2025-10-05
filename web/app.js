@@ -11,10 +11,79 @@ const $  = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 
 // -------- img helpers --------
+const IMAGE_SIZE_PRIORITY = [1600, 1200, 1000, 800, 600, 480, 400, 360, 320, 300, 240, 180, 120, 90, 60];
+const PRIMARY_IMAGE_SIZE = IMAGE_SIZE_PRIORITY[0];
+
+const parseImageUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  const match = url.match(/^(.*)\/(\d+)(\.(?:jpg|png))(?:\?(.*))?$/i);
+  if (!match) return null;
+  const [, prefix, sizeStr, ext, query = ''] = match;
+  return {
+    prefix,
+    size: Number(sizeStr),
+    ext,
+    query: query ? `?${query}` : '',
+  };
+};
+
+const buildImageUrl = (parts, size) => {
+  if (!parts) return '';
+  const target = Number.isFinite(size) ? size : parts.size;
+  let query = parts.query;
+  if (query && /([?&])w=\d+/i.test(query)) {
+    query = query.replace(/([?&])w=\d+/gi, `$1w=${target}`);
+  }
+  return `${parts.prefix}/${target}${parts.ext}${query}`;
+};
+
 const preferBig = (u) => {
   if (!u) return '';
-  return u.replace(/\/(60|180|300)\.(jpg|png)(\?.*)?$/i, '/600.$2$3');
+  const parts = parseImageUrl(u);
+  let result = parts ? buildImageUrl(parts, PRIMARY_IMAGE_SIZE) : u;
+  if (/([?&])w=\d+/i.test(result)) {
+    result = result.replace(/([?&])w=\d+/gi, `$1w=${PRIMARY_IMAGE_SIZE}`);
+  }
+  return result;
 };
+
+const expandImageVariants = (url) => {
+  const parts = parseImageUrl(url);
+  if (!parts) return url ? [url] : [];
+  const sizes = [...IMAGE_SIZE_PRIORITY];
+  if (!sizes.includes(parts.size)) sizes.push(parts.size);
+  const seen = new Set();
+  const variants = [];
+  for (const size of sizes) {
+    const candidate = buildImageUrl(parts, size);
+    if (!seen.has(candidate)) {
+      seen.add(candidate);
+      variants.push(candidate);
+    }
+  }
+  return variants;
+};
+
+const fallbackImageVariants = (url) => {
+  const parts = parseImageUrl(url);
+  if (!parts) return url ? [url] : [];
+  const sizes = [parts.size];
+  for (const size of IMAGE_SIZE_PRIORITY) {
+    if (size < parts.size) sizes.push(size);
+  }
+  if (!sizes.includes(60)) sizes.push(60);
+  const seen = new Set();
+  const variants = [];
+  for (const size of sizes) {
+    const candidate = buildImageUrl(parts, size);
+    if (!seen.has(candidate)) {
+      seen.add(candidate);
+      variants.push(candidate);
+    }
+  }
+  return variants;
+};
+
 const imgSrc = (u) => {
   if (!u) return '';
   if (/^https?:\/\//i.test(u)) return preferBig(u);
@@ -67,19 +136,13 @@ function onImgError(ev) {
 
   if (!img.dataset.baseRaw) img.dataset.baseRaw = raw;
   const base = img.dataset.baseRaw;
-  let step = Number(img.dataset.fallbackStep || '0');
-  const variants = [base];
-  if (/\/300\.(jpg|png)(\?|$)/i.test(base)) {
-    variants.push(base.replace('/300.', '/180.'));
-    variants.push(base.replace('/300.', '/60.'));
-  } else if (/\/180\.(jpg|png)(\?|$)/i.test(base)) {
-    variants.push(base.replace('/180.', '/300.'));
-    variants.push(base.replace('/180.', '/60.'));
-  } else if (/\/60\.(jpg|png)(\?|$)/i.test(base)) {
-    variants.push(base.replace('/60.', '/180.'));
-    variants.push(base.replace('/60.', '/300.'));
+  const variants = fallbackImageVariants(base);
+  if (!variants.length) {
+    img.style.display = 'none';
+    return;
   }
 
+  let step = Number(img.dataset.fallbackStep || '0');
   if (step >= variants.length) {
     img.style.display = 'none';
     return;
@@ -104,16 +167,12 @@ function collectPreviewSources(img) {
   const raw = img.getAttribute('data-raw') || '';
   if (raw) {
     if (/^https?:\/\//i.test(raw)) {
-      const hi = preferBig(raw);
-      sources.push(hi);
-      if (/\/600\.(jpg|png)/i.test(hi)) {
-        sources.push(hi.replace(/\/600\.(jpg|png)/i, '/1000.$1'));
+      for (const variant of expandImageVariants(raw)) {
+        sources.push(variant);
       }
     } else {
-      const hiRaw = preferBig(raw);
-      sources.push(`${API}/img?u=${encodeURIComponent(hiRaw)}`);
-      if (/\/600\.(jpg|png)/i.test(hiRaw)) {
-        sources.push(`${API}/img?u=${encodeURIComponent(hiRaw.replace(/\/600\.(jpg|png)/i, '/1000.$1'))}`);
+      for (const variant of expandImageVariants(raw)) {
+        sources.push(`${API}/img?u=${encodeURIComponent(variant)}`);
       }
     }
   }
@@ -312,13 +371,14 @@ function binderCardHTML(card) {
   `;
 
   const rawImage = card.image_url || '';
+  const preferredRaw = preferBig(rawImage);
   const remoteSrc = imgSrc(rawImage);
   const localSrc = card.master_id ? `${API}/img-local/${encodeURIComponent(String(card.master_id))}` : '';
   const primarySrc = localSrc || remoteSrc;
   const displaySrc = attrEscape(primarySrc);
   const safeRemote = attrEscape(remoteSrc);
   const safeLocal = attrEscape(localSrc);
-  const safeRaw = attrEscape(rawImage);
+  const safeRaw = attrEscape(preferredRaw);
 
   const nameRaw = card.name || '';
   const setRaw = card.set_name || '';
@@ -638,13 +698,14 @@ function renderImportGrid(cards) {
     const key = c.card_key || makeCardKey(c);
     const safeKey = attrEscape(key);
     const rawImage = c.image_url || '';
+    const preferredRaw = preferBig(rawImage);
     const remoteSrc = imgSrc(rawImage);
     const localSrc = c.master_id ? `${API}/img-local/${encodeURIComponent(String(c.master_id))}` : '';
     const primarySrc = localSrc || remoteSrc;
     const displaySrc = attrEscape(primarySrc);
     const safeRemote = attrEscape(remoteSrc);
     const safeLocal = attrEscape(localSrc);
-    const dataRaw = attrEscape(rawImage);
+    const dataRaw = attrEscape(preferredRaw);
     const nameRaw = c.name || '-';
     const setRaw = c.set_name || '';
     const collectorRaw = c.collector_number ? `#${c.collector_number}` : '';
