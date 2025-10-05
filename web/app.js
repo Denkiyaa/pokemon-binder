@@ -581,15 +581,28 @@ function closeModal() {
       selAll.checked = false;
       selAll.indeterminate = false;
     }
+    updateImportAddButtonState();
   };
   window.setTimeout(reset, 220);
 }
 
 
+function updateImportAddButtonState() {
+  const btn = $('#addToBinderBtn');
+  if (!btn) return;
+  if (btn.dataset.busy === '1') return;
+  const anyChecked = $$('#importGrid .sel').some(cb => cb.checked);
+  btn.disabled = !anyChecked;
+}
+
 function renderImportGrid(cards) {
   const grid = $('#importGrid');
   const count = $('#importCount');
+  const modalFoot = $('#importModal .modal__foot');
+  const list = Array.isArray(cards) ? cards : [];
   grid.innerHTML = '';
+
+  if (modalFoot) modalFoot.classList.toggle('is-active', list.length > 0);
 
   const syncSelectionHighlight = () => {
     $$('#importGrid .card').forEach(card => {
@@ -610,16 +623,18 @@ function renderImportGrid(cards) {
       selectAllInput.indeterminate = !allChecked && someChecked;
     }
     syncSelectionHighlight();
+    updateImportAddButtonState();
   };
 
-  if (!cards.length) {
+  if (!list.length) {
     grid.innerHTML = '<div class="empty">GÃ¶sterilecek kart yok.</div>';
     count.textContent = '0';
+    updateImportAddButtonState();
     return;
   }
-  count.textContent = String(cards.length);
+  count.textContent = String(list.length);
 
-  for (const c of cards) {
+  for (const c of list) {
     const key = c.card_key || makeCardKey(c);
     const safeKey = attrEscape(key);
     const rawImage = c.image_url || '';
@@ -682,10 +697,12 @@ function renderImportGrid(cards) {
       });
       selectAll.indeterminate = false;
       syncSelectionHighlight();
+      updateImportAddButtonState();
     };
   }
 
   syncSelectionHighlight();
+  updateImportAddButtonState();
 }
 
 // -------- Boot --------
@@ -832,6 +849,7 @@ async function boot() {
 
         const btn = addBtn;
         const prev = btn.textContent;
+        btn.dataset.busy = '1';
         btn.disabled = true;
         btn.innerHTML = `<span style="display:inline-block;width:16px;height:16px;border:2px solid #1f2b56;border-top-color:#fff;border-radius:50%;vertical-align:-2px;margin-right:8px;animation:spin .8s linear infinite"></span> Ekleniyor...`;
 
@@ -850,6 +868,8 @@ async function boot() {
         } finally {
           btn.disabled = false;
           btn.textContent = prev;
+          delete btn.dataset.busy;
+          updateImportAddButtonState();
         }
       });
     }

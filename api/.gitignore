@@ -7,3 +7,7 @@
 # Caches
 data/imgcache/
 **/data/imgcache/
+
+.cache/chrome
+imgcache_master
+data/last.html
