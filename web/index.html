@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Pokémon TCG Binder</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css?v=20251007">
+  <link rel="stylesheet" href="styles.css?v=20251008">
 </head>
 <body>
   <header>
@@ -34,18 +34,30 @@
     <!-- SADECE BINDER PANEL -->
     <section id="binderPanel" class="panel">
       <div class="flip-wrap">
-        <div class="binder-container">
-          <div id="binderGrid" class="grid9"></div>
-
-          <div id="binderNav" class="binder-tools">
-            <button id="toggleEditBtn" class="btn-ghost btn-compact" aria-pressed="false">Duzenle</button>
-            <div class="spacer"></div>
-            <button id="prevBtn" class="btn-ghost btn-compact">◀︎ Önceki</button>
-            <span id="pageInfo" class="muted"></span>
-            <button id="nextBtn" class="btn-ghost btn-compact">Sonraki ▶︎</button>
-          </div>
-        </div>
-
+        <div class="binder-container">
+
+          <div id="binderGrid" class="grid9"></div>
+
+
+
+          <div id="binderNav" class="binder-tools">
+
+            <button id="toggleEditBtn" class="btn-ghost btn-compact" aria-pressed="false">Duzenle</button>
+
+            <div class="spacer"></div>
+
+            <button id="prevBtn" class="btn-ghost btn-compact">◀︎ Önceki</button>
+
+            <span id="pageInfo" class="muted"></span>
+
+            <button id="nextBtn" class="btn-ghost btn-compact">Sonraki ▶︎</button>
+
+          </div>
+
+        </div>
+
+
+
       <div id="binderEmpty" class="empty" style="display:none">
         Henüz kart yok. Üstteki kutuya PriceCharting linkini yapıştırıp <b>Güncelle</b>’ye bas.
       </div>
@@ -110,7 +122,7 @@
     </figure>
   </div>
 
-  <script type="module" src="/app.js?v=20251007"></script>
+  <script type="module" src="/app.js?v=20251008"></script>
   <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 </body>
 </html>

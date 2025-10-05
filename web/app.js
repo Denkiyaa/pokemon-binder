@@ -555,7 +555,7 @@ function openModal() {
   document.body.classList.add('modal-open');
   modal.setAttribute('aria-hidden', 'false');
   const foot = modal.querySelector('.modal__foot');
-  if (foot) foot.style.display = 'flex';
+  if (foot) foot.style.removeProperty('display');
   window.requestAnimationFrame(() => {
     const panel = modal.querySelector('.modal__panel');
     panel?.focus?.();
@@ -858,6 +858,7 @@ async function boot() {
 }
 
 boot();
+
 
 
 
