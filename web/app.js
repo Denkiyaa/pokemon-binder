@@ -267,12 +267,23 @@ const toast = (msg) => {
 // -------- State --------
 const PER_PAGE = 9;
 
+const SORT_MODES = {
+  SERIES: 'set',
+  NEWEST: 'newest',
+  MANUAL: 'manual'
+};
+
+const SERIES_FILTER_ALL = 'all';
+const SERIES_UNKNOWN_LABEL = 'Seri Bilinmiyor';
+
 const binderState = {
   all: [],
   filtered: [],
   page: 0,
   query: '',
   edit: false,
+  sortMode: SORT_MODES.SERIES,
+  seriesFilter: SERIES_FILTER_ALL,
 };
 
 const binderEmptyDefault = $('#binderEmpty')?.innerHTML || '';
@@ -287,12 +298,112 @@ const makeCardKey = (card = {}) => {
 
 function normalizeBinderCard(card, idx) {
   const key = card?.binderKey || card?.binder_key || card?.card_key || card?.pc_item_id || card?.pc_url || `card-${idx}`;
+  const seriesRaw = (card?.set_name || '').toString().trim();
+  const seriesKey = seriesRaw || SERIES_UNKNOWN_LABEL;
+  const createdRaw = card?.createdAt ?? card?.created_at ?? null;
+  const createdDate = createdRaw ? new Date(createdRaw) : null;
+  const createdValid = createdDate && !Number.isNaN(createdDate.getTime());
+  const createdAtIso = createdValid ? createdDate.toISOString() : null;
+  const createdAtMs = createdValid ? createdDate.getTime() : 0;
   return {
     ...card,
     binderKey: key,
     count: Math.max(1, Number(card?.count ?? card?.quantity ?? 1) || 1),
-    sortOrder: Number(card?.sortOrder ?? card?.sort_order ?? idx)
+    sortOrder: Number(card?.sortOrder ?? card?.sort_order ?? idx),
+    seriesKey,
+    createdAt: createdAtIso,
+    createdAtMs
   };
+}
+
+function getCardSeriesKey(card) {
+  if (!card) return SERIES_UNKNOWN_LABEL;
+  const raw = (card.seriesKey ?? card.set_name ?? '').toString().trim();
+  return raw || SERIES_UNKNOWN_LABEL;
+}
+
+function refreshBinderSeriesOptions() {
+  const select = $('#binderSeriesSel');
+  if (!select) return;
+  const seen = new Set();
+  const options = [];
+  for (const card of binderState.all) {
+    const name = getCardSeriesKey(card);
+    if (!seen.has(name)) {
+      seen.add(name);
+      options.push(name);
+    }
+  }
+  options.sort((a, b) => a.localeCompare(b, 'tr', { sensitivity: 'base' }));
+  const parts = [`<option value="${SERIES_FILTER_ALL}">Tüm seriler</option>`];
+  for (const name of options) {
+    const value = attrEscape(name);
+    const label = htmlEscape(name);
+    parts.push(`<option value="${value}">${label}</option>`);
+  }
+  select.innerHTML = parts.join('');
+  if (binderState.seriesFilter !== SERIES_FILTER_ALL && !seen.has(binderState.seriesFilter)) {
+    binderState.seriesFilter = SERIES_FILTER_ALL;
+  }
+  select.value = binderState.seriesFilter;
+}
+
+function updateBinderSortUi() {
+  const select = $('#binderSortSel');
+  if (!select) return;
+  select.value = binderState.sortMode;
+  select.disabled = binderState.edit;
+}
+
+function sortBinderCards(cards) {
+  if (!Array.isArray(cards)) return [];
+  const mode = binderState.sortMode;
+  if (mode === SORT_MODES.MANUAL) return cards.slice();
+  const sorted = cards.slice();
+  if (mode === SORT_MODES.SERIES) {
+    sorted.sort((a, b) => {
+      const seriesA = getCardSeriesKey(a);
+      const seriesB = getCardSeriesKey(b);
+      const seriesCmp = seriesA.localeCompare(seriesB, 'tr', { sensitivity: 'base' });
+      if (seriesCmp !== 0) return seriesCmp;
+      const numA = parseInt((a.collector_number || '').toString().match(/\d+/)?.[0] || '0', 10);
+      const numB = parseInt((b.collector_number || '').toString().match(/\d+/)?.[0] || '0', 10);
+      if (numA !== numB) return numA - numB;
+      return (a.name || '').toString().localeCompare((b.name || '').toString(), 'tr', { sensitivity: 'base' });
+    });
+  } else if (mode === SORT_MODES.NEWEST) {
+    sorted.sort((a, b) => {
+      const timeDiff = (b.createdAtMs || 0) - (a.createdAtMs || 0);
+      if (timeDiff !== 0) return timeDiff;
+      return (a.sortOrder || 0) - (b.sortOrder || 0);
+    });
+  }
+  return sorted;
+}
+
+function binderSetSort(mode) {
+  const validModes = Object.values(SORT_MODES);
+  const nextMode = validModes.includes(mode) ? mode : SORT_MODES.SERIES;
+  if (binderState.sortMode === nextMode) {
+    updateBinderSortUi();
+    return;
+  }
+  binderState.sortMode = nextMode;
+  updateBinderSortUi();
+  applyBinderFilter(true);
+}
+
+function binderSetSeriesFilter(value) {
+  const next = value || SERIES_FILTER_ALL;
+  if (binderState.seriesFilter === next) {
+    const select = $('#binderSeriesSel');
+    if (select) select.value = binderState.seriesFilter;
+    return;
+  }
+  binderState.seriesFilter = next;
+  const select = $('#binderSeriesSel');
+  if (select && select.value !== next) select.value = next;
+  applyBinderFilter(true);
 }
 
 function updateBinderEditUi() {
@@ -308,25 +419,39 @@ function binderSetData(cards, { keepPage = false } = {}) {
   const normalized = Array.isArray(cards) ? cards.map((card, idx) => normalizeBinderCard(card, idx)) : [];
   normalized.sort((a, b) => a.sortOrder - b.sortOrder);
   binderState.all = normalized;
+  refreshBinderSeriesOptions();
   if (!binderState.all.length && binderState.edit) {
     binderState.edit = false;
     updateBinderEditUi();
   }
+  updateBinderSortUi();
   applyBinderFilter(!keepPage);
 }
 
 function applyBinderFilter(resetPage = false) {
   const query = (binderState.query || '').trim().toLowerCase();
-  binderState.filtered = !query
-    ? binderState.all.slice()
-    : binderState.all.filter(card => {
-        return [
-          card.name,
-          card.set_name,
-          card.collector_number,
-          card.condition
-        ].some(value => (value || '').toString().toLowerCase().includes(query));
-      });
+  let filtered = binderState.all;
+
+  if (binderState.seriesFilter !== SERIES_FILTER_ALL) {
+    const target = binderState.seriesFilter;
+    filtered = filtered.filter(card => getCardSeriesKey(card) === target);
+  }
+
+  if (query) {
+    filtered = filtered.filter(card => {
+      return [
+        card.name,
+        card.set_name,
+        card.collector_number,
+        card.condition
+      ].some(value => (value || '').toString().toLowerCase().includes(query));
+    });
+  } else {
+    filtered = filtered.slice();
+  }
+
+  filtered = sortBinderCards(filtered);
+  binderState.filtered = filtered;
 
   const totalPages = Math.max(1, Math.ceil(Math.max(binderState.filtered.length, 1) / PER_PAGE));
   binderState.page = resetPage ? 0 : Math.min(binderState.page, totalPages - 1);
@@ -348,9 +473,21 @@ function binderChangePage(delta) {
 }
 
 function binderSetEdit(flag) {
-  binderState.edit = Boolean(flag);
+  const next = Boolean(flag);
+  if (binderState.edit === next) {
+    updateBinderEditUi();
+    updateBinderSortUi();
+    if (!next) renderBinder();
+    return;
+  }
+  binderState.edit = next;
   updateBinderEditUi();
-  renderBinder();
+  updateBinderSortUi();
+  if (next && binderState.sortMode !== SORT_MODES.MANUAL) {
+    binderSetSort(SORT_MODES.MANUAL);
+  } else {
+    renderBinder();
+  }
 }
 
 function binderCardHTML(card) {
@@ -425,17 +562,33 @@ function renderBinder() {
 
   const total = binderState.filtered.length;
   if (!total) {
+
     empty.style.display = '';
+
     if (binderState.query) {
+
       empty.innerHTML = `"<strong>${htmlEscape(binderState.query)}</strong>" icin kart bulunamadi.`;
+
+    } else if (binderState.seriesFilter !== SERIES_FILTER_ALL) {
+
+      empty.innerHTML = `"<strong>${htmlEscape(binderState.seriesFilter)}</strong>" serisi icin kart bulunamadi.`;
+
     } else {
+
       empty.innerHTML = binderEmptyDefault;
+
     }
+
     grid.innerHTML = '';
+
     info.textContent = '';
+
     prev.disabled = true;
+
     next.disabled = true;
+
     return;
+
   }
 
   empty.style.display = 'none';
@@ -802,6 +955,12 @@ async function boot() {
     const toggleEditBtn = $('#toggleEditBtn');
     if (toggleEditBtn) toggleEditBtn.addEventListener('click', () => binderSetEdit(!binderState.edit));
 
+    const binderSortSel = $('#binderSortSel');
+    if (binderSortSel) binderSortSel.addEventListener('change', (ev) => binderSetSort(ev.target.value));
+
+    const binderSeriesSel = $('#binderSeriesSel');
+    if (binderSeriesSel) binderSeriesSel.addEventListener('change', (ev) => binderSetSeriesFilter(ev.target.value));
+
     const autoSortBtn = $('#autoSortBtn');
     if (autoSortBtn) autoSortBtn.addEventListener('click', binderAutoSort);
 
@@ -813,12 +972,19 @@ async function boot() {
     if (prevBtn) prevBtn.addEventListener('click', () => binderChangePage(-1));
     if (nextBtn) nextBtn.addEventListener('click', () => binderChangePage(1));
 
+    refreshBinderSeriesOptions();
+    updateBinderSortUi();
     await refreshBinder();
 
     $('#profileSel').addEventListener('change', async () => {
       localStorage.setItem('profile', $('#profileSel').value);
       binderState.page = 0;
       binderState.query = '';
+      binderState.seriesFilter = SERIES_FILTER_ALL;
+      binderState.sortMode = SORT_MODES.SERIES;
+      updateBinderSortUi();
+      const binderSeriesSel = $('#binderSeriesSel');
+      if (binderSeriesSel) binderSeriesSel.value = binderState.seriesFilter;
       if (binderSearch) binderSearch.value = '';
       if (binderState.edit) {
         binderState.edit = false;
@@ -831,6 +997,11 @@ async function boot() {
     $('#binderSel').addEventListener('change', async () => {
       binderState.page = 0;
       binderState.query = '';
+      binderState.seriesFilter = SERIES_FILTER_ALL;
+      binderState.sortMode = SORT_MODES.SERIES;
+      updateBinderSortUi();
+      const binderSeriesSel = $('#binderSeriesSel');
+      if (binderSeriesSel) binderSeriesSel.value = binderState.seriesFilter;
       if (binderSearch) binderSearch.value = '';
       if (binderState.edit) {
         binderState.edit = false;

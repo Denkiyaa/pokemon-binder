@@ -102,6 +102,12 @@ async function renderWithPuppeteer(url, cookieStr) {
 
   const crashpadRoot = path.join(__dirname, '.cache');
   await mkdir(crashpadRoot, { recursive: true }).catch(() => {});
+  const configRoot = path.join(crashpadRoot, 'config');
+  const cacheRoot = path.join(crashpadRoot, 'cache');
+  const tmpRoot = path.join(crashpadRoot, 'tmp');
+  await mkdir(configRoot, { recursive: true }).catch(() => {});
+  await mkdir(cacheRoot, { recursive: true }).catch(() => {});
+  await mkdir(tmpRoot, { recursive: true }).catch(() => {});
   const udd = path.join(crashpadRoot, 'chrome');
   await mkdir(udd, { recursive: true }).catch(() => {});
   const crashpadDir = path.join(udd, 'crashpad');
@@ -125,8 +131,15 @@ async function renderWithPuppeteer(url, cookieStr) {
     ],
     env: {
       ...process.env,
+      HOME: crashpadRoot,
+      USERPROFILE: crashpadRoot,
+      XDG_CONFIG_HOME: configRoot,
+      XDG_CACHE_HOME: cacheRoot,
       XDG_DATA_HOME: crashpadRoot,
+      XDG_RUNTIME_DIR: tmpRoot,
+      TMPDIR: tmpRoot,
       CRASHPAD_DATABASE: crashpadDir,
+      CRASHDUMP_DIRECTORY: crashpadDir,
       CHROME_CRASHPAD_PIPE_NAME: '',
       PUPPETEER_DISABLE_CRASH_REPORTER: '1'
     },

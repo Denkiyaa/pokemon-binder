@@ -230,6 +230,17 @@ a.link {
     min-width: 16px;
 }
 
+#binderPanel .binder-filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+#binderPanel .binder-filters select {
+    min-width: 160px;
+}
+
 .binder-tools__actions {
     display: flex;
     gap: 10px;
@@ -502,7 +513,14 @@ a.link {
     border-radius: 10px;
     background: #0f1430;
     color: #e9eefb;
-    border: 1px solid #223255
+    border: 1px solid #223255;
+}
+
+.sel.sel-compact,
+.sel-compact {
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: 14px;
 }
 
 .btn-alt {

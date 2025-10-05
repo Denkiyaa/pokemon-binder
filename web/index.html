@@ -42,10 +42,19 @@
 
 
 
-          <div id="binderNav" class="binder-tools">
-
-            <button id="toggleEditBtn" class="btn-ghost btn-compact" aria-pressed="false">Duzenle</button>
-
+          <div id="binderNav" class="binder-tools">            <button id="toggleEditBtn" class="btn-ghost btn-compact" aria-pressed="false">Duzenle</button>
+
+            <div class="binder-filters">
+              <select id="binderSeriesSel" class="sel sel-compact">
+                <option value="all">Tüm seriler</option>
+              </select>
+              <select id="binderSortSel" class="sel sel-compact">
+                <option value="set">Seriye göre</option>
+                <option value="newest">En son eklenen</option>
+                <option value="manual">Binder sırası</option>
+              </select>
+            </div>
+
             <div class="spacer"></div>
 
             <button id="prevBtn" class="btn-ghost btn-compact">◀︎ Önceki</button>

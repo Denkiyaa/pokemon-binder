@@ -327,18 +327,22 @@ async function migrateLegacyInbox(profileId) {
 async function listBinderCards(profileId, binderId) {
   const fetchRows = async () => {
     const [rows] = await pool.query(
-      `SELECT card_key, payload, sort_order, count FROM profile_binder_cards WHERE profile_id=? AND binder_id=? ORDER BY sort_order ASC, created_at ASC`,
+      `SELECT card_key, payload, sort_order, count, created_at FROM profile_binder_cards WHERE profile_id=? AND binder_id=? ORDER BY sort_order ASC, created_at ASC`,
       [profileId, binderId]
     );
     return rows
       .map(row => {
         const data = parsePayload(row.payload);
         if (!data) return null;
+        const createdAtIso = row.created_at ? new Date(row.created_at).toISOString() : null;
+        const createdAtMs = row.created_at ? Number(new Date(row.created_at).getTime()) : 0;
         return {
           ...data,
           binderKey: row.card_key,
           sortOrder: Number(row.sort_order ?? 0),
-          count: Number(row.count ?? 1)
+          count: Number(row.count ?? 1),
+          createdAt: createdAtIso,
+          createdAtMs
         };
       })
       .filter(Boolean);
