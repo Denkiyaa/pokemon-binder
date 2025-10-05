@@ -592,7 +592,7 @@ a.link {
     border-bottom: 0;
 }
 
-.modal.is-open .modal__foot {
+.modal__foot.is-active {
     display: flex;
 }
 

@@ -555,7 +555,7 @@ function openModal() {
   document.body.classList.add('modal-open');
   modal.setAttribute('aria-hidden', 'false');
   const foot = modal.querySelector('.modal__foot');
-  if (foot) foot.style.removeProperty('display');
+  if (foot) foot.classList.add('is-active');
   window.requestAnimationFrame(() => {
     const panel = modal.querySelector('.modal__panel');
     panel?.focus?.();
@@ -570,7 +570,7 @@ function closeModal() {
   modal.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('modal-open');
   const foot = modal.querySelector('.modal__foot');
-  if (foot) foot.style.display = 'none';
+  if (foot) foot.classList.remove('is-active');
   const reset = () => {
     const grid = $('#importGrid');
     const count = $('#importCount');
