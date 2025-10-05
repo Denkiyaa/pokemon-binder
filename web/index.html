@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="tr">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -7,6 +8,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="styles.css?v=20251011">
 </head>
+
 <body>
   <header>
     <div class="wrap">
@@ -58,9 +60,9 @@
 
 
 
-      <div id="binderEmpty" class="empty" style="display:none">
-        Henüz kart yok. Üstteki kutuya PriceCharting linkini yapıştırıp <b>Güncelle</b>’ye bas.
-      </div>
+        <div id="binderEmpty" class="empty" style="display:none">
+          Henüz kart yok. Üstteki kutuya PriceCharting linkini yapıştırıp <b>Güncelle</b>’ye bas.
+        </div>
     </section>
   </main>
 
@@ -85,32 +87,29 @@
       <!-- KARTLAR BURAYA DOLACAK -->
       <div id="importGrid" class="grid grid--import">
         <!--
-        ÖRNEK ŞABLON (JS ile basılacak):
-        <div class="card import-card" data-key="UNIQUE_KEY">
-          <input type="checkbox" class="sel" data-key="UNIQUE_KEY" checked>
-
-          <div class="import-card__figure">
-            <img class="thumb" src="/api/img?u=IMAGE_URL" alt="Kart görseli" onerror="this.style.display='none'">
-          </div>
-
-          <div class="import-card__meta">
-            <div class="title">Kart Adı</div>
-            <div class="muted">Set Adı • #123 • Condition</div>
-            <div class="price">$1.23</div>
-            <!-- istersen link:
-            <a class="link" href="PRICECHARTING_URL" target="_blank" rel="noreferrer">PriceCharting</a>
-            -->
-          </div>
-        </div>
-        -->
+    ÖRNEK (JS dolduracak):
+    <div class="card import-card" data-key="UNIQUE_KEY">
+      <input type="checkbox" class="sel" data-key="UNIQUE_KEY" checked>
+      <div class="import-card__figure">
+        <img class="thumb" src="/api/img?u=IMAGE_URL" alt="Kart görseli">
       </div>
-
-      <div class="modal__foot">
-        <div class="muted"><span id="importCount">0</span> kart</div>
-        <div class="spacer"></div>
-        <button id="addToBinderBtn" class="btn-main" type="button">Secileni Bindera Ekle</button>
+      <div class="import-card__meta">
+        <div class="title">Kart Adı</div>
+        <div class="muted">Set Adı • #123 • Condition</div>
+        <div class="price">$1.23</div>
+        <!-- PriceCharting linki JS ile ekleniyor -->
       </div>
     </div>
+    -->
+  </div>
+
+
+  <div class="modal__foot">
+    <div class="muted"><span id="importCount">0</span> kart</div>
+    <div class="spacer"></div>
+    <button id="addToBinderBtn" class="btn-main" type="button">Secileni Bindera Ekle</button>
+  </div>
+  </div>
   </div>
 
   <div id="imageLightbox" class="image-lightbox" aria-hidden="true" role="dialog" aria-modal="true">
@@ -123,9 +122,13 @@
   </div>
 
   <script type="module" src="/app.js?v=20251011"></script>
-  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  <style>
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+  </style>
 </body>
+
 </html>
-
-
-
