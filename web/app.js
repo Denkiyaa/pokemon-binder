@@ -825,11 +825,13 @@ async function boot() {
     let addBtn = $('#addToBinderBtn');
     if (!addBtn) {
       const modal = $('#importModal');
-      const foot = modal?.querySelector('.modal__foot');
+      const foot = modal ? modal.querySelector('.modal__foot') : null;
       if (foot) {
         addBtn = document.createElement('button');
         addBtn.id = 'addToBinderBtn';
-        addBtn.textContent = 'Secileni Bindera Ekle';
+        addBtn.type = 'button';
+        addBtn.className = 'btn-main';
+        addBtn.textContent = "Secileni Bindera Ekle";
         foot.appendChild(addBtn);
       }
     }
