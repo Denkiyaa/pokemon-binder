@@ -79,30 +79,22 @@
           <label class="muted">
             <input type="checkbox" id="selectAll"> Tümünü seç
           </label>
-          <a id="openPc" class="link" href="#" target="_blank" rel="noreferrer">Kaynak linki</a>
-          <button id="closeModalBtn" class="btn-alt">Kapat</button>
+          <a id="openPc" class="link" href="#" target="_blank" rel="snoreferrer">Kaynak linki</a>
+          <button id="closeModalBtn" class="btn-alt" type="button">Kapat</button>
         </div>
       </div>
 
-      <!-- KARTLAR BURAYA DOLACAK -->
-      <div id="importGrid" class="grid grid--import">
-        <!--
-    ÖRNEK (JS dolduracak):
-    <div class="card import-card" data-key="UNIQUE_KEY">
-      <input type="checkbox" class="sel" data-key="UNIQUE_KEY" checked>
-      <div class="import-card__figure">
-        <img class="thumb" src="/api/img?u=IMAGE_URL" alt="Kart görseli">
-      </div>
-      <div class="import-card__meta">
-        <div class="title">Kart Adı</div>
-        <div class="muted">Set Adı • #123 • Condition</div>
-        <div class="price">$1.23</div>
-        <!-- PriceCharting linki JS ile ekleniyor -->
+      <!-- Liste: sadece bu bölüm scroll olacak -->
+      <div id="importGrid" class="grid grid--import"></div>
+
+      <!-- FOOTER: buton burada -->
+      <div class="modal__foot">
+        <div class="muted"><span id="importCount">0</span> kart</div>
+        <div class="spacer"></div>
+        <button id="addToBinderBtn" class="btn-main" type="button">Seçileni Binder’a Ekle</button>
       </div>
     </div>
-    -->
   </div>
-
 
   <div class="modal__foot">
     <div class="muted"><span id="importCount">0</span> kart</div>
