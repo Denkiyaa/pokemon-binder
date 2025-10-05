@@ -79,9 +79,9 @@ button {
     cursor: pointer
 }
 
-button#addToBinderBtn {
+.btn-main {
     background: var(--accent2);
-    color: #06112b
+    color: #06112b;
 }
 
 /* Main */

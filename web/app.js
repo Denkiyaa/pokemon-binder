@@ -822,20 +822,7 @@ async function boot() {
       }
     });
 
-    let addBtn = $('#addToBinderBtn');
-    if (!addBtn) {
-      const modal = $('#importModal');
-      const foot = modal ? modal.querySelector('.modal__foot') : null;
-      if (foot) {
-        addBtn = document.createElement('button');
-        addBtn.id = 'addToBinderBtn';
-        addBtn.type = 'button';
-        addBtn.className = 'btn-main';
-        addBtn.textContent = "Secileni Bindera Ekle";
-        foot.appendChild(addBtn);
-      }
-    }
-
+    const addBtn = $('#addToBinderBtn');
     if (addBtn) {
       addBtn.addEventListener('click', async () => {
         const profile = $('#profileSel').value || 'default';
