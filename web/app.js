@@ -822,34 +822,48 @@ async function boot() {
       }
     });
 
-    $('#addToBinderBtn').addEventListener('click', async () => {
-      const profile = $('#profileSel').value || 'default';
-      const binder  = $('#binderSel').value || 'main';
-      const keys = $$('#importGrid .sel:checked').map(cb => cb.dataset.key).filter(Boolean);
-      if (!keys.length) return alert('Hic kart secmedin.');
-
-      const btn = $('#addToBinderBtn');
-      const prev = btn.textContent;
-      btn.disabled = true;
-      btn.innerHTML = `<span style="display:inline-block;width:16px;height:16px;border:2px solid #1f2b56;border-top-color:#fff;border-radius:50%;vertical-align:-2px;margin-right:8px;animation:spin .8s linear infinite"></span> Ekleniyor...`;
-
-      try {
-        await getJSON('/binder/add', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ profile, binder, cardKeys: keys })
-        });
-        binderState.page = 0;
-        await refreshBinder();
-        toast(`${keys.length} kart eklendi`);
-        closeModal();
-      } catch (e) {
-        alert('Binder ekleme hatasi: ' + e.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = prev;
+    let addBtn = $('#addToBinderBtn');
+    if (!addBtn) {
+      const modal = $('#importModal');
+      const foot = modal?.querySelector('.modal__foot');
+      if (foot) {
+        addBtn = document.createElement('button');
+        addBtn.id = 'addToBinderBtn';
+        addBtn.textContent = 'Secileni Bindera Ekle';
+        foot.appendChild(addBtn);
       }
-    });
+    }
+
+    if (addBtn) {
+      addBtn.addEventListener('click', async () => {
+        const profile = $('#profileSel').value || 'default';
+        const binder  = $('#binderSel').value || 'main';
+        const keys = $$('#importGrid .sel:checked').map(cb => cb.dataset.key).filter(Boolean);
+        if (!keys.length) return alert('Hic kart secmedin.');
+
+        const btn = addBtn;
+        const prev = btn.textContent;
+        btn.disabled = true;
+        btn.innerHTML = `<span style="display:inline-block;width:16px;height:16px;border:2px solid #1f2b56;border-top-color:#fff;border-radius:50%;vertical-align:-2px;margin-right:8px;animation:spin .8s linear infinite"></span> Ekleniyor...`;
+
+        try {
+          await getJSON('/binder/add', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ profile, binder, cardKeys: keys })
+          });
+          binderState.page = 0;
+          await refreshBinder();
+          toast(`${keys.length} kart eklendi`);
+          closeModal();
+        } catch (e) {
+          alert('Binder ekleme hatasi: ' + e.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = prev;
+        }
+      });
+    }
 
   } catch (e) {
     console.error('[UI] boot error', e);
