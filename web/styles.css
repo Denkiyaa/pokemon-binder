@@ -208,6 +208,37 @@ a.link {
     margin-bottom: 16px;
 }
 
+/* Keep navigation controls together and tidy */
+#binderPanel .binder-tools .spacer {
+    display: none;
+}
+
+#binderPanel .binder-tools #toggleEditBtn { order: 10; }
+#binderPanel .binder-filters { order: 20; }
+#binderPanel #pageInfo {
+    order: 30;
+    margin-left: auto;
+    white-space: nowrap;
+    max-width: 42ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#binderPanel #prevBtn { order: 40; }
+#binderPanel #nextBtn { order: 41; }
+
+/* On small screens, center the pager */
+@media (max-width: 640px) {
+    #binderPanel #pageInfo {
+        flex: 1 1 100%;
+        margin-left: 0;
+        text-align: center;
+    }
+    #binderPanel #prevBtn,
+    #binderPanel #nextBtn {
+        flex: 0 0 auto;
+    }
+}
+
 #binderPanel .binder-tools input[type=search] {
     flex: 1;
     min-width: 220px;
