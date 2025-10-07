@@ -202,10 +202,48 @@ a.link {
 
 #binderPanel .binder-tools {
     display: flex;
-    gap: 12px;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     margin-bottom: 16px;
+}
+
+.binder-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.binder-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#binderPanel #pageInfo {
+    font-weight: 600;
+    color: var(--muted);
+    min-width: 50px;
+    text-align: center;
+}
+
+/* Mobil görünüm: 2 satırda düzgün dağılsın */
+@media (max-width: 640px) {
+    #binderPanel .binder-tools {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .binder-actions,
+    .binder-nav {
+        justify-content: center;
+    }
+
+    #binderPanel #binderSearch {
+        width: 100%;
+    }
 }
 
 /* Keep navigation controls together and tidy */
@@ -213,8 +251,14 @@ a.link {
     display: none;
 }
 
-#binderPanel .binder-tools #toggleEditBtn { order: 10; }
-#binderPanel .binder-filters { order: 20; }
+#binderPanel .binder-tools #toggleEditBtn {
+    order: 10;
+}
+
+#binderPanel .binder-filters {
+    order: 20;
+}
+
 #binderPanel #pageInfo {
     order: 30;
     margin-left: auto;
@@ -223,8 +267,21 @@ a.link {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-#binderPanel #prevBtn { order: 40; }
-#binderPanel #nextBtn { order: 41; }
+
+#binderPanel #prevBtn {
+    order: 40;
+}
+
+#binderPanel #nextBtn {
+    order: 41;
+}
+
+#setFilter {
+    min-width: 180px;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
 
 /* On small screens, center the pager */
 @media (max-width: 640px) {
@@ -233,6 +290,7 @@ a.link {
         margin-left: 0;
         text-align: center;
     }
+
     #binderPanel #prevBtn,
     #binderPanel #nextBtn {
         flex: 0 0 auto;
@@ -972,10 +1030,10 @@ body.binder-edit .slot {
 }
 
 
-.modal__foot{
-  position: sticky;
-  bottom: 0;
-  background: rgba(8,12,28,.85);
-  backdrop-filter: blur(6px);
-  z-index: 2;
+.modal__foot {
+    position: sticky;
+    bottom: 0;
+    background: rgba(8, 12, 28, .85);
+    backdrop-filter: blur(6px);
+    z-index: 2;
 }

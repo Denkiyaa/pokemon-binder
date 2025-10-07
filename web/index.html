@@ -42,36 +42,40 @@
 
 
 
-          <div id="binderNav" class="binder-tools">            <button id="toggleEditBtn" class="btn-ghost btn-compact" aria-pressed="false">Duzenle</button>
-
-            <div class="binder-filters">
-              <select id="binderSeriesSel" class="sel sel-compact">
-                <option value="all">Tüm seriler</option>
-              </select>
-              <select id="binderSortSel" class="sel sel-compact">
-                <option value="set">Seriye göre</option>
-                <option value="newest">En son eklenen</option>
-                <option value="manual">Binder sırası</option>
-              </select>
-            </div>
-
-            <div class="spacer"></div>
+          <div id="binderNav" class="binder-tools">
+            <!-- Sol taraf: düzenleme butonu -->
+            <div class="binder-actions">
+              <button id="toggleEditBtn" class="btn-ghost btn-compact" aria-pressed="false">Düzenle</button>
+            </div>
 
-            <button id="prevBtn" class="btn-ghost btn-compact">◀︎ Önceki</button>
+            <!-- Orta: filtreler + arama -->
+            <div class="binder-filters">
+              <select id="binderSeriesSel" class="sel sel-compact" multiple>
+                <option value="all" selected>Tüm seriler</option>
+              </select>
 
-            <span id="pageInfo" class="muted"></span>
+              <select id="binderSortSel" class="sel sel-compact">
+                <option value="set">Seriye göre</option>
+                <option value="newest">En son eklenen</option>
+                <option value="manual">Binder sırası</option>
+              </select>
 
-            <button id="nextBtn" class="btn-ghost btn-compact">Sonraki ▶︎</button>
+              <input id="binderSearch" type="search" placeholder="Kart veya set ara...">
+            </div>
 
+            <!-- Sağ taraf: sayfa navigasyonu -->
+            <div class="binder-nav">
+              <button id="prevBtn" class="btn-ghost btn-compact">◀︎</button>
+              <span id="pageInfo" class="muted">1 / 10</span>
+              <button id="nextBtn" class="btn-ghost btn-compact">▶︎</button>
+            </div>
           </div>
 
-        </div>
 
 
-
-        <div id="binderEmpty" class="empty" style="display:none">
-          Henüz kart yok. Üstteki kutuya PriceCharting linkini yapıştırıp <b>Güncelle</b>’ye bas.
-        </div>
+          <div id="binderEmpty" class="empty" style="display:none">
+            Henüz kart yok. Üstteki kutuya PriceCharting linkini yapıştırıp <b>Güncelle</b>’ye bas.
+          </div>
     </section>
   </main>
 

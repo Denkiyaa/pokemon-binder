@@ -1,4 +1,4 @@
-// -------- API helper --------
+﻿// -------- API helper --------
 const API = '/api';
 async function getJSON(url, opts) {
   const r = await fetch(API + url, opts);
@@ -7,7 +7,7 @@ async function getJSON(url, opts) {
 }
 
 // -------- DOM helpers --------
-const $  = (s) => document.querySelector(s);
+const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 
 // -------- img helpers --------
@@ -126,7 +126,7 @@ function onImgError(ev) {
     try {
       const u = new URL(remoteSrc, location.href);
       raw = u.searchParams.get('u') ? decodeURIComponent(u.searchParams.get('u')) : '';
-    } catch {}
+    } catch { }
   }
 
   if (!raw) {
@@ -260,8 +260,8 @@ function handleLightboxKeydown(ev) {
 // -------- Toast --------
 const toast = (msg) => {
   const t = $('#toast'); if (!t) return;
-  t.textContent = msg; t.style.display='block';
-  setTimeout(()=>t.style.display='none', 2500);
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2500);
 };
 
 // -------- State --------
@@ -925,7 +925,7 @@ async function loadProfiles() {
   const sel = $('#profileSel');
   const saved = localStorage.getItem('profile') || 'default';
   sel.innerHTML = rows.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-  sel.value = rows.some(r=>r.id===saved) ? saved : (rows[0]?.id || 'default');
+  sel.value = rows.some(r => r.id === saved) ? saved : (rows[0]?.id || 'default');
 }
 
 async function boot() {
@@ -963,6 +963,19 @@ async function boot() {
 
     const autoSortBtn = $('#autoSortBtn');
     if (autoSortBtn) autoSortBtn.addEventListener('click', binderAutoSort);
+
+    const filterSelect = document.getElementById('setFilter');
+
+    filterSelect.addEventListener('change', () => {
+      const selected = Array.from(filterSelect.selectedOptions).map(opt => opt.value);
+      renderBinderPage(1, selected); // filtre uygulanarak sayfa yenile
+    });
+
+    // isimleri temizle
+    document.querySelectorAll('#setFilter option').forEach(opt => {
+      opt.textContent = opt.textContent.replace(/^Pokemon\s+/i, '');
+    });
+
 
     const binderGrid = $('#binderGrid');
     if (binderGrid) binderGrid.addEventListener('click', binderGridClickHandler);
@@ -1014,7 +1027,7 @@ async function boot() {
       const name = prompt('Yeni profil adi:');
       if (!name) return;
       const r = await getJSON('/profiles', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name })
       });
       await loadProfiles();
       $('#profileSel').value = r.id;
@@ -1044,8 +1057,8 @@ async function boot() {
 
       try {
         const r = await getJSON('/import', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url, cookie, profile })
         });
         const cards = await getJSON(`/inbox?profile=${encodeURIComponent(profile)}`);
@@ -1075,7 +1088,7 @@ async function boot() {
     if (addBtn) {
       addBtn.addEventListener('click', async () => {
         const profile = $('#profileSel').value || 'default';
-        const binder  = $('#binderSel').value || 'main';
+        const binder = $('#binderSel').value || 'main';
         const keys = $$('#importGrid .sel:checked').map(cb => cb.dataset.key).filter(Boolean);
         if (!keys.length) return alert('Hic kart secmedin.');
 
@@ -1087,8 +1100,8 @@ async function boot() {
 
         try {
           await getJSON('/binder/add', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ profile, binder, cardKeys: keys })
           });
           binderState.page = 0;
