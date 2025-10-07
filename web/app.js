@@ -964,18 +964,10 @@ async function boot() {
     const autoSortBtn = $('#autoSortBtn');
     if (autoSortBtn) autoSortBtn.addEventListener('click', binderAutoSort);
 
-    const filterSelect = document.getElementById('setFilter');
-
-    filterSelect.addEventListener('change', () => {
-      const selected = Array.from(filterSelect.selectedOptions).map(opt => opt.value);
-      renderBinderPage(1, selected); // filtre uygulanarak sayfa yenile
-    });
-
     // isimleri temizle
     document.querySelectorAll('#setFilter option').forEach(opt => {
       opt.textContent = opt.textContent.replace(/^Pokemon\s+/i, '');
     });
-
 
     const binderGrid = $('#binderGrid');
     if (binderGrid) binderGrid.addEventListener('click', binderGridClickHandler);
