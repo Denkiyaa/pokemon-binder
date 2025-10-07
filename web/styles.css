@@ -200,6 +200,7 @@ a.link {
     display: block;
 }
 
+/* --- Binder araç çubuğu düzeni --- */
 #binderPanel .binder-tools {
     display: flex;
     flex-wrap: wrap;
@@ -211,9 +212,17 @@ a.link {
 
 .binder-actions {
     display: flex;
+    align-items: center;
     gap: 10px;
+}
+
+.binder-filters {
+    display: flex;
     flex-wrap: wrap;
     align-items: center;
+    gap: 10px;
+    flex: 1;
+    justify-content: center;
 }
 
 .binder-nav {
@@ -222,6 +231,29 @@ a.link {
     gap: 6px;
 }
 
+#binderPanel #binderSearch {
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid #223255;
+    background: var(--panel2);
+    color: var(--text);
+    outline: none;
+    min-width: 180px;
+}
+
+#binderPanel #binderSearch:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(106, 162, 255, .18);
+}
+
+/* Çoklu filtre görünümü */
+#binderPanel select[multiple] {
+    min-width: 200px;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+/* Sayfa bilgisi hizalaması */
 #binderPanel #pageInfo {
     font-weight: 600;
     color: var(--muted);
@@ -229,14 +261,15 @@ a.link {
     text-align: center;
 }
 
-/* Mobil görünüm: 2 satırda düzgün dağılsın */
-@media (max-width: 640px) {
+/* Mobilde dikey hizalama */
+@media (max-width: 700px) {
     #binderPanel .binder-tools {
         flex-direction: column;
         align-items: stretch;
     }
 
     .binder-actions,
+    .binder-filters,
     .binder-nav {
         justify-content: center;
     }
@@ -246,18 +279,6 @@ a.link {
     }
 }
 
-/* Keep navigation controls together and tidy */
-#binderPanel .binder-tools .spacer {
-    display: none;
-}
-
-#binderPanel .binder-tools #toggleEditBtn {
-    order: 10;
-}
-
-#binderPanel .binder-filters {
-    order: 20;
-}
 
 #binderPanel #pageInfo {
     order: 30;
