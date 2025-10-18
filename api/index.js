@@ -636,8 +636,9 @@ api.post('/login', async (req, res) => {
     // default password rule: password === nickname
     if (pass !== nick) return res.status(401).json({ error: 'invalid credentials' });
 
-    // ensure profile exists
-    await ensureProfileRow(nick);
+    // profile must exist in DB (profiles = login info)
+    const [rows] = await pool.query(`SELECT id FROM profiles WHERE id=?`, [nick]);
+    if (!rows?.length) return res.status(401).json({ error: 'invalid credentials' });
     req.session.userId = nick;
     res.json({ ok: true, userId: nick });
   } catch (e) {
@@ -658,9 +659,22 @@ api.post('/logout', (req, res) => {
 });
 
 // profiles (DB)
-api.get('/profiles', async (_req, res) => {
-  try { res.json(await listProfiles()); }
-  catch (e) { console.error('[profiles][get]', e); res.status(500).json({ error: 'profiles get failed' }); }
+api.get('/profiles', async (req, res) => {
+  try {
+    const uid = req.session?.userId;
+    if (uid) {
+      const [rows] = await pool.query(`SELECT id, name FROM profiles WHERE id=?`, [uid]);
+      if (rows?.length) return res.json(rows);
+      return res.json([{ id: uid, name: uid }]);
+    }
+    // No session: only expose 'default'
+    const [rows] = await pool.query(`SELECT id, name FROM profiles WHERE id='default'`);
+    return res.json(rows?.length ? rows : [{ id: 'default', name: 'default' }]);
+  }
+  catch (e) {
+    console.error('[profiles][get]', e);
+    res.status(500).json({ error: 'profiles get failed' });
+  }
 });
 api.post('/profiles', async (req, res) => {
   try {

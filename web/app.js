@@ -1067,7 +1067,7 @@ async function loadProfiles() {
 async function boot() {
   try {
     // Inject auth UI and reflect session state
-    ensureAuthUi();
+    // ensureAuthUi disabled (no login box)
     const me = await apiMe();
     setAuthUi(me?.userId || null);
     await loadProfiles();
@@ -1076,6 +1076,8 @@ async function boot() {
       if (sel) sel.value = String(me.userId);
     }
     updateBinderEditUi();
+    // profiles are login info; hide creator button on site
+    { const b = document.getElementById('createProfileBtn'); if (b) b.style.display = 'none'; }
 
     lightboxRoot = $('#imageLightbox');
     lightboxImageEl = $('#lightboxImage');
