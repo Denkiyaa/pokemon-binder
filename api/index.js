@@ -1,6 +1,7 @@
 // api/index.js
 import express from 'express';
 import cors from 'cors';
+import session from 'express-session';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -583,12 +584,78 @@ async function binderUpdateCount(profileId, binderId, cardKey, nextCount) {
 const app = express();
 app.use(cors());
 app.use(express.json());
+// sessions (simple, in-memory store for dev)
+app.use(session({
+  name: 'binder.sid',
+  secret: process.env.SESSION_SECRET || 'pokemon-binder-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax'
+  }
+}));
 
 // ---- API router (/api) ----
 const api = express.Router();
 
 // health
 api.get('/health', (_req, res) => res.json({ ok: true }));
+
+// ---- Auth ----
+function normalizeNick(nick = '') {
+  return (nick || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9_-]/g, '')
+    || 'default';
+}
+
+api.get('/me', async (req, res) => {
+  const uid = req.session?.userId || null;
+  if (!uid) return res.json({ userId: null });
+  try {
+    const [rows] = await pool.query('SELECT id, name FROM profiles WHERE id=?', [uid]);
+    const profile = rows?.[0] || { id: uid, name: uid };
+    res.json({ userId: uid, profile });
+  } catch (e) {
+    console.error('[me]', e);
+    res.json({ userId: uid });
+  }
+});
+
+api.post('/login', async (req, res) => {
+  try {
+    const rawNick = (req.body?.nick ?? req.body?.nickname ?? req.body?.user ?? req.body?.username ?? '').toString();
+    const pass = (req.body?.password ?? req.body?.pass ?? '').toString();
+    const nick = normalizeNick(rawNick);
+    if (!nick) return res.status(400).json({ error: 'nick required' });
+
+    // default password rule: password === nickname
+    if (pass !== nick) return res.status(401).json({ error: 'invalid credentials' });
+
+    // ensure profile exists
+    await ensureProfileRow(nick);
+    req.session.userId = nick;
+    res.json({ ok: true, userId: nick });
+  } catch (e) {
+    console.error('[login]', e);
+    res.status(500).json({ error: 'login failed' });
+  }
+});
+
+api.post('/logout', (req, res) => {
+  try {
+    req.session.destroy(() => {
+      res.json({ ok: true });
+    });
+  } catch (e) {
+    console.error('[logout]', e);
+    res.json({ ok: true });
+  }
+});
 
 // profiles (DB)
 api.get('/profiles', async (_req, res) => {
@@ -682,7 +749,7 @@ api.get('/img-local/:id', async (req, res) => {
 
 // inbox / binder (JSON)
 api.get('/inbox', async (req, res) => {
-  const pid = (req.query.profile || 'default').toString();
+  const pid = (req.session?.userId || req.query.profile || 'default').toString();
   try {
     res.json(await listInboxCards(pid));
   } catch (e) {
@@ -691,7 +758,7 @@ api.get('/inbox', async (req, res) => {
   }
 });
 api.get('/binder', async (req, res) => {
-  const pid = (req.query.profile || 'default').toString();
+  const pid = (req.session?.userId || req.query.profile || 'default').toString();
   const bid = (req.query.binder || 'main').toString();
   try {
     res.json(await listBinderCards(pid, bid));
@@ -701,7 +768,7 @@ api.get('/binder', async (req, res) => {
   }
 });
 api.post('/binder/add', async (req, res) => {
-  const pid  = (req.body?.profile || 'default').toString();
+  const pid  = (req.session?.userId || req.body?.profile || 'default').toString();
   const bid  = (req.body?.binder  || 'main').toString();
   const keys = Array.isArray(req.body?.cardKeys) ? req.body.cardKeys : [];
   try {
@@ -714,7 +781,7 @@ api.post('/binder/add', async (req, res) => {
 });
 
 api.post('/binder/remove', async (req, res) => {
-  const pid = (req.body?.profile || 'default').toString();
+  const pid = (req.session?.userId || req.body?.profile || 'default').toString();
   const bid = (req.body?.binder || 'main').toString();
   const keys = Array.isArray(req.body?.cardKeys) ? req.body.cardKeys : [];
   try {
@@ -727,7 +794,7 @@ api.post('/binder/remove', async (req, res) => {
 });
 
 api.post('/binder/update-count', async (req, res) => {
-  const pid = (req.body?.profile || 'default').toString();
+  const pid = (req.session?.userId || req.body?.profile || 'default').toString();
   const bid = (req.body?.binder || 'main').toString();
   const key = (req.body?.cardKey || '').toString();
   const raw = Number(req.body?.count);
@@ -742,7 +809,7 @@ api.post('/binder/update-count', async (req, res) => {
 });
 
 api.post('/binder/reorder', async (req, res) => {
-  const pid = (req.body?.profile || 'default').toString();
+  const pid = (req.session?.userId || req.body?.profile || 'default').toString();
   const bid = (req.body?.binder || 'main').toString();
   const order = Array.isArray(req.body?.order) ? req.body.order : [];
   try {
@@ -755,7 +822,7 @@ api.post('/binder/reorder', async (req, res) => {
 });
 
 api.post('/binder/auto-sort', async (req, res) => {
-  const pid = (req.body?.profile || 'default').toString();
+  const pid = (req.session?.userId || req.body?.profile || 'default').toString();
   const bid = (req.body?.binder || 'main').toString();
   try {
     const result = await binderAutoSort(pid, bid);
@@ -772,7 +839,7 @@ api.post('/import', async (req, res) => {
   try {
     const url = (req.body?.url || '').toString();
     const cookie = (req.body?.cookie || '').toString();
-    const pid = (req.body?.profile || 'default').toString();
+    const pid = (req.session?.userId || req.body?.profile || 'default').toString();
     if (!url) return res.status(400).json({ error: 'url required' });
 
     console.log('[IMPORT] url =', url);

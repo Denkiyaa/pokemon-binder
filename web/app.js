@@ -6,6 +6,63 @@ async function getJSON(url, opts) {
   return r.json();
 }
 
+// -------- Auth helpers --------
+async function apiMe() {
+  try { return await getJSON('/me'); } catch { return { userId: null }; }
+}
+async function apiLogin(nick, password) {
+  return getJSON('/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nick, password })
+  });
+}
+async function apiLogout() {
+  return getJSON('/logout', { method: 'POST' });
+}
+
+function ensureAuthUi() {
+  const bar = document.querySelector('header .bar');
+  if (!bar) return;
+  if (document.getElementById('authBox')) return;
+  const box = document.createElement('div');
+  box.id = 'authBox';
+  box.style.display = 'flex';
+  box.style.gap = '8px';
+  box.style.alignItems = 'center';
+  box.innerHTML = `
+    <div id="authLoggedOut" style="display:flex; gap:8px; align-items:center;">
+      <input id="loginNick" class="sel sel-compact" type="text" placeholder="Nick">
+      <input id="loginPass" class="sel sel-compact" type="password" placeholder="Şifre">
+      <button id="loginBtn" class="btn-alt" type="button">Giriş</button>
+    </div>
+    <div id="authLoggedIn" style="display:none; gap:8px; align-items:center;">
+      <span class="muted">Giriş: <b id="loginUser"></b></span>
+      <button id="logoutBtn" class="btn-alt" type="button">Çıkış</button>
+    </div>`;
+  bar.appendChild(box);
+}
+
+function setAuthUi(userId) {
+  const loggedOut = document.getElementById('authLoggedOut');
+  const loggedIn = document.getElementById('authLoggedIn');
+  const loginUser = document.getElementById('loginUser');
+  const profileSel = document.getElementById('profileSel');
+  const createBtn = document.getElementById('createProfileBtn');
+  const isIn = Boolean(userId);
+  if (loggedOut) loggedOut.style.display = isIn ? 'none' : 'flex';
+  if (loggedIn) loggedIn.style.display = isIn ? 'flex' : 'none';
+  if (loginUser) loginUser.textContent = isIn ? String(userId) : '';
+  if (profileSel) {
+    profileSel.disabled = isIn;
+    if (isIn) {
+      profileSel.value = String(userId);
+      localStorage.setItem('profile', String(userId));
+    }
+  }
+  if (createBtn) createBtn.style.display = isIn ? 'none' : '';
+}
+
 // -------- DOM helpers --------
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -338,7 +395,9 @@ function refreshBinderSeriesOptions() {
   const parts = [`<option value="${SERIES_FILTER_ALL}">Tüm seriler</option>`];
   for (const name of options) {
     const value = attrEscape(name);
-    const label = htmlEscape(name);
+    // Display label without leading "Pokemon" prefix for readability
+    const display = name.replace(/^pokemon\s*[:\-]?\s*/i, '').trim() || name;
+    const label = htmlEscape(display);
     parts.push(`<option value="${value}">${label}</option>`);
   }
   select.innerHTML = parts.join('');
@@ -799,6 +858,83 @@ function closeModal() {
   window.setTimeout(reset, 220);
 }
 
+// -------- Reset Modal logic --------
+function ensureResetModalInDom() {
+  if (document.getElementById('resetModal')) return;
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <div id="resetModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="modal__backdrop" data-reset-close></div>
+      <div class="modal__panel" tabindex="-1" style="max-width:520px">
+        <div class="modal__head">
+          <div class="title">Binderi Sifirla</div>
+          <div class="actions">
+            <button id="closeResetModalBtn" class="btn-alt" type="button">Kapat</button>
+          </div>
+        </div>
+        <div style="padding:20px 24px;display:grid;gap:12px;">
+          <div class="muted">Tum kartlari silmek icin kutuya <b>delete</b> yaz ve onayla. Bu islem geri alinamaz.</div>
+          <input id="resetConfirmInput" type="text" class="sel sel-compact" placeholder="delete yaz...">
+        </div>
+        <div class="modal__foot is-active">
+          <div class="muted">Islem: Binder sifirlama</div>
+          <div class="spacer"></div>
+          <button id="confirmResetBtn" class="btn-main" type="button" disabled>Sil</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(wrapper.firstElementChild);
+}
+
+function openResetModal() {
+  ensureResetModalInDom();
+  const modal = document.getElementById('resetModal');
+  if (!modal) return;
+  modal.classList.add('is-open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('modal-open');
+  const input = document.getElementById('resetConfirmInput');
+  const btn = document.getElementById('confirmResetBtn');
+  if (input) input.value = '';
+  if (btn) btn.disabled = true;
+  window.requestAnimationFrame(() => {
+    modal.querySelector('.modal__panel')?.focus?.();
+  });
+}
+
+function closeResetModal() {
+  const modal = document.getElementById('resetModal');
+  if (!modal) return;
+  modal.classList.remove('is-open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('modal-open');
+}
+
+async function binderResetAll() {
+  if (binderBusy) return;
+  const keys = binderState.all.map(c => c.binderKey).filter(Boolean);
+  if (!keys.length) {
+    closeResetModal();
+    return;
+  }
+  const btn = document.getElementById('confirmResetBtn');
+  const prev = btn?.textContent;
+  binderBusy = true;
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = 'Siliniyor...'; }
+    await binderAction('remove', { cardKeys: keys });
+    toast('Binder sifirlandi');
+    await refreshBinder();
+    closeResetModal();
+  } catch (e) {
+    console.error('[binder] reset', e);
+    alert('Sifirlama hatasi: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = prev || 'Sil'; }
+    binderBusy = false;
+  }
+}
+
 
 function updateImportAddButtonState() {
   const btn = $('#addToBinderBtn');
@@ -930,7 +1066,15 @@ async function loadProfiles() {
 
 async function boot() {
   try {
+    // Inject auth UI and reflect session state
+    ensureAuthUi();
+    const me = await apiMe();
+    setAuthUi(me?.userId || null);
     await loadProfiles();
+    if (me?.userId) {
+      const sel = document.getElementById('profileSel');
+      if (sel) sel.value = String(me.userId);
+    }
     updateBinderEditUi();
 
     lightboxRoot = $('#imageLightbox');
@@ -1034,6 +1178,35 @@ async function boot() {
       await refreshBinder();
     });
 
+    // ---- Auth events ----
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (loginBtn) {
+      loginBtn.addEventListener('click', async () => {
+        const nick = (document.getElementById('loginNick')?.value || '').trim();
+        const pass = (document.getElementById('loginPass')?.value || '').trim();
+        if (!nick || !pass) return alert('Nick ve şifre gir');
+        try {
+          await apiLogin(nick, pass);
+          setAuthUi(nick.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, ''));
+          await loadProfiles();
+          const sel = document.getElementById('profileSel');
+          if (sel) sel.value = nick.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, '');
+          await refreshBinder();
+        } catch (e) {
+          alert('Giriş başarısız: ' + (e?.message || e));
+        }
+      });
+    }
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        try { await apiLogout(); } catch {}
+        setAuthUi(null);
+        await loadProfiles();
+        await refreshBinder();
+      });
+    }
+
     $('#importBtn').addEventListener('click', async () => {
       const url = $('#urlInput').value.trim();
       const cookie = $('#cookieInput')?.value.trim();
@@ -1109,6 +1282,51 @@ async function boot() {
           updateImportAddButtonState();
         }
       });
+    }
+
+    // Binder reset button + modal wiring
+    try {
+      // Make sure series select is single-select (dropdown)
+      const seriesSel = document.getElementById('binderSeriesSel');
+      if (seriesSel) seriesSel.removeAttribute('multiple');
+
+      // Inject reset button next to edit button if missing
+      const actions = document.querySelector('.binder-actions');
+      if (actions && !document.getElementById('resetBinderBtn')) {
+        const rbtn = document.createElement('button');
+        rbtn.id = 'resetBinderBtn';
+        rbtn.type = 'button';
+        rbtn.className = 'btn-ghost btn-compact danger';
+        rbtn.title = 'Tum kartlari sil';
+        rbtn.textContent = 'Bindera Sifirla';
+        actions.appendChild(rbtn);
+      }
+      ensureResetModalInDom();
+      const resetBtn = document.getElementById('resetBinderBtn');
+      if (resetBtn) resetBtn.addEventListener('click', openResetModal);
+      const resetInput = document.getElementById('resetConfirmInput');
+      const confirmResetBtn = document.getElementById('confirmResetBtn');
+      const closeResetBtn = document.getElementById('closeResetModalBtn');
+      const resetBackdrop = document.querySelector('#resetModal .modal__backdrop');
+      if (resetInput && confirmResetBtn) {
+        resetInput.addEventListener('input', () => {
+          const ok = (resetInput.value || '').trim().toLowerCase() === 'delete';
+          confirmResetBtn.disabled = !ok || binderBusy;
+        });
+      }
+      if (confirmResetBtn) confirmResetBtn.addEventListener('click', binderResetAll);
+      if (closeResetBtn) closeResetBtn.addEventListener('click', closeResetModal);
+      if (resetBackdrop) resetBackdrop.addEventListener('click', closeResetModal);
+      document.addEventListener('keydown', (ev) => {
+        if (ev.key !== 'Escape') return;
+        const modalEl = document.getElementById('resetModal');
+        if (modalEl?.classList?.contains('is-open')) {
+          ev.preventDefault();
+          closeResetModal();
+        }
+      });
+    } catch (e) {
+      console.warn('[UI] reset modal wiring failed', e);
     }
 
   } catch (e) {

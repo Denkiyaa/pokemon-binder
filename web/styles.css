@@ -1050,6 +1050,10 @@ body.binder-edit .slot {
     border-color: rgba(106, 162, 255, .8);
 }
 
+/* Show reset button only in edit mode */
+#resetBinderBtn { display: none; }
+body.binder-edit #resetBinderBtn { display: inline-block; }
+
 
 .modal__foot {
     position: sticky;
